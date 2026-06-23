@@ -1,6 +1,8 @@
 import json
+import uuid
+from datetime import datetime
 from sqlalchemy.orm import Session
-from database.models import Company, ESGScore
+from database.models import Company, ESGScore, Job
 
 
 def get_or_create_company(db: Session, name: str, industry: str, ticker: str = None) -> Company:
@@ -70,3 +72,52 @@ def get_company_score_history(db: Session, company_id: int) -> list[ESGScore]:
         .order_by(ESGScore.Timestamp.desc())
         .all()
     )
+
+
+# ── Job CRUD ─────────────────────────────────────────────────────────────────
+
+def create_job(db: Session, company_name: str | None, ticker: str | None) -> Job:
+    job = Job(
+        JobID=str(uuid.uuid4()),
+        CompanyName=company_name,
+        Ticker=ticker,
+        Status="pending",
+        Progress=0,
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    return job
+
+
+def update_job_progress(db: Session, job_id: str, step: str, progress: int) -> None:
+    job = db.query(Job).filter(Job.JobID == job_id).first()
+    if job:
+        job.Status = "running"
+        job.CurrentStep = step
+        job.Progress = progress
+        job.UpdatedAt = datetime.utcnow()
+        db.commit()
+
+
+def finish_job(db: Session, job_id: str, company_name: str) -> None:
+    job = db.query(Job).filter(Job.JobID == job_id).first()
+    if job:
+        job.Status = "done"
+        job.Progress = 100
+        job.CompanyName = company_name
+        job.UpdatedAt = datetime.utcnow()
+        db.commit()
+
+
+def fail_job(db: Session, job_id: str, error: str) -> None:
+    job = db.query(Job).filter(Job.JobID == job_id).first()
+    if job:
+        job.Status = "error"
+        job.ErrorMessage = error
+        job.UpdatedAt = datetime.utcnow()
+        db.commit()
+
+
+def get_job(db: Session, job_id: str) -> Job | None:
+    return db.query(Job).filter(Job.JobID == job_id).first()
