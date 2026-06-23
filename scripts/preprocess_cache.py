@@ -24,9 +24,10 @@ from core.scoring import calculate_esg_score
 CACHE_DIR = Path(__file__).parent.parent / "data" / "cache"
 
 COMPANIES = [
-    {"name": "台達電", "ticker": "2308", "industry": "電子製造業"},
-    {"name": "中鋼",   "ticker": "2002", "industry": "鋼鐵業"},
+    {"name": "台達電",  "ticker": "2308", "industry": "電子製造業"},
+    {"name": "中鋼",    "ticker": "2002", "industry": "鋼鐵業"},
     {"name": "南山人壽","ticker": "5874", "industry": "保險業"},
+    {"name": "臺積電",  "ticker": "2330", "industry": "半導體製造業"},
 ]
 
 

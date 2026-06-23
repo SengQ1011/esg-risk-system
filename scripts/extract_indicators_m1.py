@@ -80,6 +80,7 @@ COMPANIES = [
     {"company": "台達電",  "ticker": "2308", "industry": "電子製造業", "filename": "台達電_2023.pdf",  "year": 2023},
     {"company": "中鋼",    "ticker": "2002", "industry": "鋼鐵業",     "filename": "中鋼_2023.pdf",    "year": 2023},
     {"company": "南山人壽","ticker": "5874", "industry": "保險業",     "filename": "南山人壽_2023.pdf","year": 2023},
+    {"company": "臺積電",  "ticker": "2330", "industry": "半導體製造業","filename": "臺積電_2023.pdf",  "year": 2023},
 ]
 
 # ── GRI 索引定位 patterns ─────────────────────────────────────────

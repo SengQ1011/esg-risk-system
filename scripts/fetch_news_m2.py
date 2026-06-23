@@ -41,6 +41,7 @@ COMPANIES = [
     {"company": "台達電",   "ticker": "2308", "industry": "電子製造業"},
     {"company": "中鋼",     "ticker": "2002", "industry": "鋼鐵業"},
     {"company": "南山人壽", "ticker": "5874", "industry": "保險業"},
+    {"company": "臺積電",   "ticker": "2330", "industry": "半導體製造業"},
 ]
 
 # ── ERS 參數 ──────────────────────────────────────────────────────────────────

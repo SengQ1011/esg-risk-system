@@ -25,7 +25,7 @@ ROOT      = Path(__file__).parent.parent
 CACHE_DIR = ROOT / "data" / "cache"
 PDF_DIR   = ROOT / "data" / "pdfs"
 
-COMPANIES    = ["台達電", "中鋼", "南山人壽"]
+COMPANIES    = ["台達電", "中鋼", "南山人壽", "臺積電"]
 BOOLEAN_KEYS = {"has_sustainability_officer", "assurance"}
 
 RATIO_KEYS = {

@@ -27,7 +27,7 @@ ROOT      = Path(__file__).parent.parent
 CACHE_DIR = ROOT / "data" / "cache"
 PDF_DIR   = ROOT / "data" / "pdfs"
 
-COMPANIES = ["台達電", "中鋼", "南山人壽"]
+COMPANIES = ["台達電", "中鋼", "南山人壽", "臺積電"]
 
 
 def diagnose_indicator(doc, page_map, key, ind, company):

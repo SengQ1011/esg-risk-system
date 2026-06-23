@@ -16,7 +16,10 @@ from __future__ import annotations
 
 import fitz  # PyMuPDF
 
-A4_WIDTH_PT = 595.28  # A4 直式短邊（pt），2-up 偵測基準
+A4_WIDTH_PT    = 595.28  # A4 直式短邊（pt），2-up 偵測基準
+# 只有寬度 > A4 的 1.8 倍才算多頁（真正的 A3 約 1190pt = 2×595）
+# 臺積電的 964pt 介於 A4 和 A3 之間，屬於自訂寬版，應視為 1 頁
+_MULTI_UP_THRESHOLD = A4_WIDTH_PT * 1.8  # ≈ 1071pt
 
 
 def build_logical_to_physical_map(
@@ -49,7 +52,12 @@ def build_logical_to_physical_map(
 
         w = page.rect.width
         # 這張物理頁包含幾個邏輯 A4 頁面
-        n_logical = max(1, round(w / A4_WIDTH_PT))
+        # 只有真正的多頁格式（寬度 > 1.8x A4）才算多頁；
+        # 自訂寬版（如臺積電 964pt ≈ 1.6x A4）視為單頁
+        if w >= _MULTI_UP_THRESHOLD:
+            n_logical = max(1, round(w / A4_WIDTH_PT))
+        else:
+            n_logical = 1
 
         for _ in range(n_logical):
             mapping[logical_page] = phys_idx
