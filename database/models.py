@@ -1,4 +1,5 @@
 import os
+import uuid
 from datetime import datetime
 from sqlalchemy import create_engine, Column, Integer, String, Float, Text, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
@@ -49,6 +50,20 @@ class ESGScore(Base):
     Timestamp = Column(DateTime, default=datetime.utcnow)
 
     company = relationship("Company", back_populates="scores")
+
+
+class Job(Base):
+    __tablename__ = "Jobs"
+
+    JobID = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    CompanyName = Column(String, nullable=True)
+    Ticker = Column(String, nullable=True)
+    Status = Column(String, default="pending")   # pending / running / done / error
+    CurrentStep = Column(String, nullable=True)
+    Progress = Column(Integer, default=0)        # 0–100
+    ErrorMessage = Column(Text, nullable=True)
+    CreatedAt = Column(DateTime, default=datetime.utcnow)
+    UpdatedAt = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 Base.metadata.create_all(bind=engine)
