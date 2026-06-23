@@ -7,6 +7,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from database.models import SessionLocal
@@ -31,8 +32,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-_PDF_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "pdfs"))
+_PDF_DIR   = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "pdfs"))
+_CACHE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "cache"))
 app.mount("/pdfs", StaticFiles(directory=_PDF_DIR), name="pdfs")
+
+
+def _get_page_offset(company_name: str) -> int:
+    """從 indicators cache JSON 讀取 page_offset（封面/目錄頁數）。"""
+    cache_path = os.path.join(_CACHE_DIR, f"{company_name}_indicators.json")
+    try:
+        with open(cache_path, encoding="utf-8") as f:
+            data = json.load(f)
+        return int(data.get("_meta", {}).get("page_offset", 0))
+    except Exception:
+        return 0
 
 
 def get_db():
@@ -107,6 +120,8 @@ def get_company_detail(company_name: str, db: Session = Depends(get_db)):
     elif latest.NewsEventScore >= 0.2:
         warnings.append({"type": "news", "level": "medium", "message": f"存在中度負面新聞（ERS 分數：{latest.NewsEventScore:.2f}）"})
 
+    page_offset = _get_page_offset(company.Name)
+
     return {
         "status": "success",
         "data": {
@@ -115,6 +130,7 @@ def get_company_detail(company_name: str, db: Session = Depends(get_db)):
                 "ticker": company.Ticker,
                 "industry": company.Industry,
             },
+            "page_offset": page_offset,
             "score": {
                 "total_score": latest.TotalScore,
                 "grade": latest.Grade,
@@ -208,25 +224,18 @@ def get_dashboard(db: Session = Depends(get_db)):
 
 
 @app.get("/api/pdf/{company_name}")
-def get_pdf_url(company_name: str, db: Session = Depends(get_db)):
-    """回傳指定公司的 PDF 靜態 URL（供前端 PDF viewer 使用）"""
+def stream_pdf(company_name: str, db: Session = Depends(get_db)):
+    """直接串流指定公司的永續報告書 PDF（繞過中文檔名 URL 編碼問題）"""
     company = get_company_by_name(db, company_name)
     if not company:
         raise HTTPException(status_code=404, detail=f"找不到公司：{company_name}")
 
-    filename = f"{company_name}_{2023}.pdf"
+    filename = f"{company.Name}_2023.pdf"
     pdf_path = os.path.join(_PDF_DIR, filename)
     if not os.path.exists(pdf_path):
         raise HTTPException(status_code=404, detail=f"PDF 檔案不存在：{filename}")
 
-    return {
-        "status": "success",
-        "data": {
-            "company_name": company_name,
-            "pdf_url": f"/pdfs/{filename}",
-            "filename": filename,
-        },
-    }
+    return FileResponse(pdf_path, media_type="application/pdf", filename=filename)
 
 
 @app.get("/health")

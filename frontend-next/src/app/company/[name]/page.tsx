@@ -8,65 +8,8 @@ import { ScoreRadarChart } from "@/components/score-radar-chart"
 import { ScoreBarChart } from "@/components/score-bar-chart"
 import { DecisionLights } from "@/components/decision-lights"
 import { WarningList } from "@/components/warning-list"
+import { BreakdownTableClient } from "@/components/breakdown-table-client"
 import { fetchCompanyDetail } from "@/lib/api"
-import type { IndicatorBreakdownItem } from "@/lib/types"
-
-const INDICATOR_LABELS: Record<string, string> = {
-  ghg_scope1: "溫室氣體 Scope 1",
-  ghg_scope2: "溫室氣體 Scope 2",
-  ghg_scope3: "溫室氣體 Scope 3",
-  carbon_intensity: "碳排放強度",
-  electricity: "用電量",
-  renewable_ratio: "再生能源佔比",
-  water: "用水量",
-  waste: "廢棄物產生量",
-  injury_rate: "職災率 (TRIR)",
-  turnover: "員工離職率",
-  female_ratio: "女性員工比例",
-  female_mgmt_ratio: "女性管理層比例",
-  training_hours: "年均培訓時數",
-  independent_director_ratio: "獨立董事比例",
-  female_director_ratio: "女性董事比例",
-  has_sustainability_officer: "設有永續長",
-  assurance: "第三方驗證",
-  violations: "違規次數",
-}
-
-function BreakdownTable({ items }: { items: IndicatorBreakdownItem[] }) {
-  return (
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="border-b text-left text-xs text-gray-500">
-          <th className="pb-2 pr-3 font-medium">指標</th>
-          <th className="pb-2 pr-3 text-right font-medium">原始值</th>
-          <th className="pb-2 pr-3 text-right font-medium">正規化</th>
-          <th className="pb-2 text-right font-medium">貢獻分</th>
-        </tr>
-      </thead>
-      <tbody>
-        {items.map((item) => (
-          <tr key={item.key} className="border-b last:border-0">
-            <td className="py-1.5 pr-3 text-gray-700">
-              {INDICATOR_LABELS[item.key] ?? item.key}
-              {item.missing && (
-                <span className="ml-1 text-[10px] text-orange-500">(缺失)</span>
-              )}
-            </td>
-            <td className="py-1.5 pr-3 text-right text-gray-500">
-              {item.raw_value != null ? String(item.raw_value) : "—"}
-            </td>
-            <td className="py-1.5 pr-3 text-right text-gray-500">
-              {(item.normalized * 100).toFixed(1)}%
-            </td>
-            <td className="py-1.5 text-right font-medium text-gray-800">
-              {(item.contribution * 100).toFixed(2)}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  )
-}
 
 interface PageProps {
   params: Promise<{ name: string }>
@@ -84,7 +27,7 @@ export default async function CompanyPage({ params }: PageProps) {
     notFound()
   }
 
-  const { company, score, breakdown, warnings, reasoning, decision } = detail
+  const { company, score, breakdown, warnings, reasoning, decision, page_offset } = detail
 
   return (
     <div className="space-y-6">
@@ -198,6 +141,7 @@ export default async function CompanyPage({ params }: PageProps) {
             <FileText className="size-4" />
             指標貢獻拆解（可解釋性）
           </CardTitle>
+          <p className="text-xs text-gray-400">點擊指標列可開啟 PDF 原始頁面</p>
         </CardHeader>
         <CardContent className="space-y-5">
           {(["E", "S", "G"] as const).map((dim) => (
@@ -205,7 +149,11 @@ export default async function CompanyPage({ params }: PageProps) {
               <h3 className="mb-2 text-sm font-semibold text-gray-600">
                 {dim === "E" ? "E 環境" : dim === "S" ? "S 社會" : "G 治理"}
               </h3>
-              <BreakdownTable items={breakdown[dim] ?? []} />
+              <BreakdownTableClient
+                items={breakdown[dim] ?? []}
+                companyName={company.name}
+                pageOffset={page_offset ?? 0}
+              />
               {dim !== "G" && <Separator className="mt-4" />}
             </div>
           ))}

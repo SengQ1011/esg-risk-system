@@ -22,8 +22,13 @@ export interface CompaniesResponse {
 
 export interface IndicatorBreakdownItem {
   key: string
-  raw_value: number | null
-  normalized: number
+  raw_value: number | boolean | null
+  unit: string | null
+  source_page: number | null
+  pdf_page: number | null      // PyMuPDF 確認的物理頁碼（react-pdf 1-based），優先用此跳頁
+  bbox: [number, number, number, number] | null
+  confidence: number
+  normalized: number | null
   weight: number
   contribution: number
   missing: boolean
@@ -58,6 +63,7 @@ export interface CompanyDetail {
     ticker: string
     industry: string
   }
+  page_offset: number
   score: {
     total_score: number
     grade: string

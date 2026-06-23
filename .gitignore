@@ -30,10 +30,14 @@ CLAUDE.md
 .claude/rules/
 # 保留：.claude/rules/（專案規範，需 commit）
 
-# ── Next.js 前端（待建立）────────────────────────────────────────
+# ── Next.js 前端 ─────────────────────────────────────────────────
 node_modules/
 .next/
 out/
+
+# CMap 字體檔（從 node_modules/pdfjs-dist/cmaps/ 複製而來，可重新生成）
+# 重新生成：cp -r frontend-next/node_modules/pdfjs-dist/cmaps frontend-next/public/
+frontend-next/public/cmaps/
 
 # ── IDE / OS ──────────────────────────────────────────────────────
 .vscode/

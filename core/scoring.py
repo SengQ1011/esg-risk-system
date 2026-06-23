@@ -80,12 +80,14 @@ def _score_dimension(
         if isinstance(raw_indicator, dict):
             raw_value   = raw_indicator.get("value")
             source_page = raw_indicator.get("source_page")
+            pdf_page    = raw_indicator.get("_pdf_page")   # 物理頁碼，PyMuPDF 確認
             bbox        = raw_indicator.get("bbox")
             unit        = raw_indicator.get("unit")
             confidence  = raw_indicator.get("confidence", 1.0)
         else:
             raw_value   = raw_indicator
             source_page = None
+            pdf_page    = None
             bbox        = None
             unit        = None
             confidence  = 1.0 if raw_indicator is not None else 0.0
@@ -106,6 +108,7 @@ def _score_dimension(
             "raw_value": raw_value,
             "unit": unit,
             "source_page": source_page,
+            "pdf_page": pdf_page,
             "bbox": bbox,
             "confidence": confidence,
             "normalized": round(normalized, 4) if normalized is not None else None,

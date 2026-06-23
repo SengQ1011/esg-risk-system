@@ -6,104 +6,138 @@
   "report_title": "中鋼2023年永續報告書",
   "indicators": {
     "ghg_scope1": {
-      "value": 16809455,
+      "value": 16809455.0,
+      "source_text": "16,809,455",
       "unit": "公噸CO2e",
       "source_page": 45,
       "confidence": 0.95,
-      "_compact_page": 24,
+      "_compact_page": 2,
       "bbox": [
-        0.399,
-        0.162,
-        0.501,
-        0.173
-      ]
+        0.913,
+        0.3813,
+        0.9476,
+        0.3928
+      ],
+      "_pdf_page": 25
     },
     "ghg_scope2": {
-      "value": null,
+      "value": 1249102.0,
+      "source_text": "1,249,102",
       "unit": "公噸CO2e",
       "source_page": 45,
-      "confidence": 0.0,
-      "_compact_page": null,
-      "bbox": null
+      "confidence": 0.95,
+      "_compact_page": 2,
+      "bbox": [
+        0.9169,
+        0.4002,
+        0.9476,
+        0.4117
+      ],
+      "_pdf_page": 25
     },
     "ghg_scope3": {
-      "value": null,
+      "value": 11317609.0,
+      "source_text": "11,317,609",
       "unit": "公噸CO2e",
       "source_page": 45,
-      "confidence": 0.0,
-      "_compact_page": null,
-      "bbox": null
+      "confidence": 0.95,
+      "_compact_page": 2,
+      "bbox": [
+        0.913,
+        0.4345,
+        0.9476,
+        0.446
+      ],
+      "_pdf_page": 25
     },
     "carbon_intensity": {
-      "value": null,
+      "value": 85.26,
+      "source_text": "85.26",
       "unit": "公噸CO2e/百萬元",
       "source_page": 45,
-      "confidence": 0.0,
-      "_compact_page": null,
-      "bbox": null
+      "confidence": 0.95,
+      "_compact_page": 2,
+      "bbox": [
+        0.9307,
+        0.5015,
+        0.9476,
+        0.513
+      ],
+      "_pdf_page": 25
     },
     "electricity": {
-      "value": 2560058554,
+      "value": 2557904166.6,
+      "source_text": "外購電力 (不含再生能源) 9,104,411 / 再生能源 太陽能 103,944",
       "unit": "kWh",
       "source_page": 57,
-      "confidence": 0.7,
-      "_compact_page": 23,
-      "bbox": null
+      "confidence": 0.95,
+      "_compact_page": 6,
+      "bbox": null,
+      "_pdf_page": 31
     },
     "renewable_ratio": {
-      "value": 0.05221,
+      "value": 1.1287,
+      "source_text": "再生能源 太陽能 103,944 / 外購電力 (不含再生能源) 9,104,411",
       "unit": "%",
-      "source_page": 57,
-      "confidence": 0.7,
-      "_compact_page": 24,
+      "source_page": 55,
+      "confidence": 0.95,
+      "_compact_page": 6,
       "bbox": [
-        0.473,
-        0.3,
-        0.501,
-        0.311
-      ]
+        0.575,
+        0.586,
+        0.5834,
+        0.5962
+      ],
+      "_pdf_page": 29
     },
     "water": {
-      "value": 40962000,
+      "value": 26435000.0,
+      "source_text": "26,435",
       "unit": "立方公尺",
       "source_page": 61,
       "confidence": 0.95,
-      "_compact_page": 24,
+      "_compact_page": 8,
       "bbox": [
-        0.649,
-        0.399,
-        0.699,
-        0.41
-      ]
+        0.8957,
+        0.318,
+        0.9154,
+        0.3296
+      ],
+      "_pdf_page": 34
     },
     "waste": {
       "value": 517164.16,
+      "source_text": "517,164.16",
       "unit": "公噸",
       "source_page": 65,
       "confidence": 0.95,
-      "_compact_page": 24,
+      "_compact_page": 10,
       "bbox": [
-        0.649,
-        0.6,
-        0.73,
-        0.611
-      ]
+        0.6953,
+        0.3582,
+        0.736,
+        0.3719
+      ],
+      "_pdf_page": 35
     },
     "injury_rate": {
-      "value": 0.08,
+      "value": 0.39,
+      "source_text": "0.39",
       "unit": "TRIR",
       "source_page": 89,
       "confidence": 0.95,
-      "_compact_page": 24,
+      "_compact_page": 21,
       "bbox": [
-        0.779,
-        0.699,
-        0.807,
-        0.71
-      ]
+        0.4283,
+        0.7385,
+        0.4408,
+        0.7501
+      ],
+      "_pdf_page": 49
     },
     "turnover": {
       "value": null,
+      "source_text": null,
       "unit": "%",
       "source_page": 81,
       "confidence": 0.0,
@@ -111,15 +145,23 @@
       "bbox": null
     },
     "female_ratio": {
-      "value": null,
+      "value": 3.731,
+      "source_text": "359",
       "unit": "%",
       "source_page": 77,
-      "confidence": 0.0,
-      "_compact_page": null,
-      "bbox": null
+      "confidence": 0.95,
+      "_compact_page": 16,
+      "bbox": [
+        0.6251,
+        0.3692,
+        0.6388,
+        0.383
+      ],
+      "_pdf_page": 41
     },
     "female_mgmt_ratio": {
       "value": null,
+      "source_text": null,
       "unit": "%",
       "source_page": 79,
       "confidence": 0.0,
@@ -128,6 +170,7 @@
     },
     "training_hours": {
       "value": null,
+      "source_text": null,
       "unit": "小時/人/年",
       "source_page": null,
       "confidence": 0.0,
@@ -135,57 +178,63 @@
       "bbox": null
     },
     "independent_director_ratio": {
-      "value": 27.27,
+      "value": null,
+      "source_text": null,
       "unit": "%",
-      "source_page": 13,
-      "confidence": 0.95,
-      "_compact_page": 13,
+      "source_page": null,
+      "confidence": 0.0,
+      "_compact_page": null,
       "bbox": null
     },
     "female_director_ratio": {
-      "value": 9.09,
+      "value": null,
+      "source_text": null,
       "unit": "%",
-      "source_page": 13,
-      "confidence": 0.95,
-      "_compact_page": 13,
+      "source_page": null,
+      "confidence": 0.0,
+      "_compact_page": null,
       "bbox": null
     },
     "has_sustainability_officer": {
-      "value": false,
+      "value": null,
+      "source_text": null,
       "unit": "布林",
       "source_page": 35,
-      "confidence": 0.95,
-      "_compact_page": 14,
+      "confidence": 0.0,
+      "_compact_page": null,
       "bbox": null
     },
     "assurance": {
       "value": true,
+      "source_text": "外部查證(確信)機構為立恩威(DNV)國際驗證股份有限公司,依該機構查證結果,本公司溫室氣體盤查符合合理保證等級。",
       "unit": "布林",
-      "source_page": 27,
+      "source_page": 45,
       "confidence": 0.95,
-      "_compact_page": 27,
+      "_compact_page": 2,
       "bbox": null
     },
     "violations": {
-      "value": 0,
+      "value": 0.0,
+      "source_text": "無",
       "unit": "次",
       "source_page": 49,
       "confidence": 0.95,
-      "_compact_page": 8,
+      "_compact_page": 21,
       "bbox": [
-        0.899,
-        0.6,
-        0.913,
-        0.611
-      ]
+        0.0913,
+        0.4534,
+        0.0995,
+        0.4672
+      ],
+      "_pdf_page": 49
     }
   },
   "greenwash_claims": [],
   "_meta": {
     "pipeline_version": "v2-hybrid",
     "total_pdf_pages": 83,
-    "compact_pdf_pages": 27,
-    "page_offset": 0,
+    "compact_pdf_pages": 26,
+    "page_offset": 7,
     "gri_page_map": {
       "ghg_scope1": [
         45
@@ -194,7 +243,8 @@
         45
       ],
       "ghg_scope3": [
-        45
+        45,
+        46
       ],
       "carbon_intensity": [
         45
@@ -203,12 +253,13 @@
         57
       ],
       "renewable_ratio": [
-        57,
-        58
+        55,
+        57
       ],
       "water": [
         61,
-        63
+        63,
+        64
       ],
       "waste": [
         65
@@ -229,11 +280,42 @@
       "has_sustainability_officer": [
         35
       ],
+      "assurance": [
+        45
+      ],
       "violations": [
         49,
         93
       ]
     },
-    "indicators_found": 11
+    "indicators_found": 12,
+    "compact_page_map": {
+      "1": 24,
+      "2": 25,
+      "3": 26,
+      "4": 29,
+      "5": 30,
+      "6": 31,
+      "7": 32,
+      "8": 33,
+      "9": 34,
+      "10": 35,
+      "11": 36,
+      "12": 37,
+      "13": 38,
+      "14": 39,
+      "15": 40,
+      "16": 41,
+      "17": 45,
+      "18": 46,
+      "19": 47,
+      "20": 48,
+      "21": 49,
+      "22": 51,
+      "23": 52,
+      "24": 53,
+      "25": 54,
+      "26": 55
+    }
   }
 }

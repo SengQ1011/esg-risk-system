@@ -7,175 +7,202 @@
   "indicators": {
     "ghg_scope1": {
       "value": 26283,
+      "source_text": "26,283 公噸二氧化碳當量",
       "unit": "公噸CO2e",
       "source_page": 101,
       "confidence": 0.95,
       "_compact_page": 6,
       "bbox": [
-        0.739,
-        0.486,
-        0.79,
-        0.502
-      ]
+        0.7405,
+        0.4845,
+        0.7943,
+        0.514
+      ],
+      "_pdf_page": 103
     },
     "ghg_scope2": {
       "value": 105992,
+      "source_text": "105,992 公噸二氧化碳當量",
       "unit": "公噸CO2e",
       "source_page": 101,
       "confidence": 0.95,
       "_compact_page": 6,
       "bbox": [
-        0.74,
-        0.599,
-        0.799,
-        0.615
-      ]
+        0.7415,
+        0.6061,
+        0.8052,
+        0.6356
+      ],
+      "_pdf_page": 103
     },
     "ghg_scope3": {
       "value": 7160049,
+      "source_text": "7,160,049 公噸二氧化碳當量",
       "unit": "公噸CO2e",
       "source_page": 101,
       "confidence": 0.95,
       "_compact_page": 6,
       "bbox": [
-        0.74,
-        0.712,
-        0.819,
-        0.728
-      ]
+        0.7397,
+        0.7028,
+        0.8176,
+        0.7323
+      ],
+      "_pdf_page": 103
     },
     "carbon_intensity": {
       "value": 11.3,
+      "source_text": "11.3",
       "unit": "公噸CO2e/百萬元",
       "source_page": 101,
       "confidence": 0.95,
       "_compact_page": 7,
       "bbox": [
-        0.659,
-        0.34,
-        0.689,
-        0.356
-      ]
+        0.6614,
+        0.359,
+        0.6817,
+        0.3791
+      ],
+      "_pdf_page": 104
     },
     "electricity": {
       "value": 747828000,
+      "source_text": "747,828 千度",
       "unit": "kWh",
       "source_page": 104,
       "confidence": 0.95,
       "_compact_page": 9,
       "bbox": [
-        0.489,
-        0.38,
-        0.56,
-        0.396
-      ]
+        0.5348,
+        0.3836,
+        0.5902,
+        0.4089
+      ],
+      "_pdf_page": 106
     },
     "renewable_ratio": {
       "value": 76.0,
+      "source_text": "76%",
       "unit": "%",
       "source_page": 108,
       "confidence": 0.95,
       "_compact_page": 7,
       "bbox": [
-        0.659,
-        0.44,
-        0.689,
-        0.456
-      ]
+        0.2953,
+        0.4848,
+        0.3169,
+        0.5049
+      ],
+      "_pdf_page": 104
     },
     "water": {
       "value": 4293600,
+      "source_text": "4,293.6 百萬公升",
       "unit": "立方公尺",
       "source_page": 115,
       "confidence": 0.95,
       "_compact_page": 21,
       "bbox": [
-        0.429,
-        0.44,
-        0.489,
-        0.456
-      ]
+        0.6633,
+        0.4506,
+        0.7003,
+        0.4687
+      ],
+      "_pdf_page": 118
     },
     "waste": {
       "value": 49304,
+      "source_text": "49,304 公噸",
       "unit": "公噸",
       "source_page": 119,
       "confidence": 0.95,
       "_compact_page": 24,
       "bbox": [
-        0.409,
-        0.47,
-        0.469,
-        0.486
-      ]
+        0.4172,
+        0.485,
+        0.4758,
+        0.504
+      ],
+      "_pdf_page": 121
     },
     "injury_rate": {
       "value": 0.77,
+      "source_text": "0.77",
       "unit": "TRIR",
       "source_page": 186,
       "confidence": 0.95,
       "_compact_page": 44,
       "bbox": [
-        0.309,
-        0.44,
-        0.349,
-        0.456
-      ]
+        0.2687,
+        0.2945,
+        0.2897,
+        0.3135
+      ],
+      "_pdf_page": 188
     },
     "turnover": {
       "value": 1.5,
+      "source_text": "1.5%",
       "unit": "%",
       "source_page": 140,
       "confidence": 0.95,
       "_compact_page": 28,
       "bbox": [
-        0.889,
-        0.42,
-        0.929,
-        0.436
-      ]
+        0.1269,
+        0.4136,
+        0.1515,
+        0.4325
+      ],
+      "_pdf_page": 142
     },
     "female_ratio": {
       "value": 48.7,
+      "source_text": "48.7%",
       "unit": "%",
       "source_page": 140,
       "confidence": 0.95,
       "_compact_page": 29,
       "bbox": [
-        0.889,
-        0.34,
-        0.929,
-        0.356
-      ]
+        0.8847,
+        0.3536,
+        0.912,
+        0.3714
+      ],
+      "_pdf_page": 143
     },
     "female_mgmt_ratio": {
       "value": 32.0,
+      "source_text": "所有管理職位 女性 32.0%",
       "unit": "%",
       "source_page": 140,
       "confidence": 0.95,
       "_compact_page": 33,
       "bbox": [
-        0.709,
-        0.34,
-        0.749,
-        0.356
-      ]
+        0.6984,
+        0.3203,
+        0.7144,
+        0.3471
+      ],
+      "_pdf_page": 147
     },
     "training_hours": {
       "value": 19.0,
+      "source_text": "19.0",
       "unit": "小時/人/年",
       "source_page": 163,
       "confidence": 0.95,
       "_compact_page": 35,
       "bbox": [
-        0.429,
-        0.7,
-        0.469,
-        0.716
-      ]
+        0.6445,
+        0.7118,
+        0.6657,
+        0.7319
+      ],
+      "_pdf_page": 165
     },
     "independent_director_ratio": {
       "value": null,
+      "source_text": null,
       "unit": "%",
       "source_page": null,
       "confidence": 0.0,
@@ -184,6 +211,7 @@
     },
     "female_director_ratio": {
       "value": null,
+      "source_text": null,
       "unit": "%",
       "source_page": 140,
       "confidence": 0.0,
@@ -192,22 +220,25 @@
     },
     "has_sustainability_officer": {
       "value": true,
+      "source_text": "2019年設立永續長一職",
       "unit": "布林",
       "source_page": 20,
       "confidence": 0.95,
-      "_compact_page": 20,
+      "_compact_page": 2,
       "bbox": null
     },
     "assurance": {
       "value": true,
+      "source_text": "SGS Assurance Statement",
       "unit": "布林",
       "source_page": 217,
       "confidence": 0.95,
-      "_compact_page": 107,
+      "_compact_page": 54,
       "bbox": null
     },
     "violations": {
       "value": null,
+      "source_text": null,
       "unit": "次",
       "source_page": null,
       "confidence": 0.0,
@@ -320,6 +351,63 @@
         217
       ]
     },
-    "indicators_found": 15
+    "indicators_found": 15,
+    "compact_page_map": {
+      "1": 21,
+      "2": 22,
+      "3": 23,
+      "4": 24,
+      "5": 102,
+      "6": 103,
+      "7": 104,
+      "8": 105,
+      "9": 106,
+      "10": 107,
+      "11": 108,
+      "12": 109,
+      "13": 110,
+      "14": 111,
+      "15": 112,
+      "16": 113,
+      "17": 114,
+      "18": 115,
+      "19": 116,
+      "20": 117,
+      "21": 118,
+      "22": 119,
+      "23": 120,
+      "24": 121,
+      "25": 122,
+      "26": 123,
+      "27": 141,
+      "28": 142,
+      "29": 143,
+      "30": 144,
+      "31": 145,
+      "32": 146,
+      "33": 147,
+      "34": 164,
+      "35": 165,
+      "36": 166,
+      "37": 167,
+      "38": 168,
+      "39": 169,
+      "40": 170,
+      "41": 171,
+      "42": 172,
+      "43": 187,
+      "44": 188,
+      "45": 189,
+      "46": 190,
+      "47": 191,
+      "48": 192,
+      "49": 193,
+      "50": 194,
+      "51": 195,
+      "52": 196,
+      "53": 218,
+      "54": 219,
+      "55": 220
+    }
   }
 }

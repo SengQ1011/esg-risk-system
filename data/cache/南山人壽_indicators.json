@@ -7,79 +7,92 @@
   "indicators": {
     "ghg_scope1": {
       "value": 2196.53,
+      "source_text": "直接溫室氣體排放量(類別1) ... 2,196.530",
       "unit": "公噸CO2e",
       "source_page": 50,
       "confidence": 0.95,
       "_compact_page": 7,
       "bbox": [
-        0.409,
-        0.242,
-        0.491,
-        0.256
-      ]
+        0.4278,
+        0.2358,
+        0.4783,
+        0.2535
+      ],
+      "_pdf_page": 51
     },
     "ghg_scope2": {
       "value": 18740.407,
+      "source_text": "能源間接溫室氣體排放量(類別2) ... 18,740.407",
       "unit": "公噸CO2e",
       "source_page": 50,
       "confidence": 0.95,
       "_compact_page": 7,
       "bbox": [
-        0.409,
-        0.302,
-        0.491,
-        0.316
-      ]
+        0.4213,
+        0.3266,
+        0.4783,
+        0.3442
+      ],
+      "_pdf_page": 51
     },
     "ghg_scope3": {
       "value": 14395000,
+      "source_text": "南山2023年投資組合財務碳排放為14,395千公噸二氧化碳當量(KtCO2e)",
       "unit": "公噸CO2e",
       "source_page": 50,
       "confidence": 0.95,
       "_compact_page": 5,
       "bbox": [
-        0.409,
-        0.199,
-        0.464,
-        0.213
-      ]
+        0.2842,
+        0.6949,
+        0.3132,
+        0.7133
+      ],
+      "_pdf_page": 49
     },
     "carbon_intensity": {
       "value": 0.045,
+      "source_text": "公噸二氧化碳當量/百萬營收 ... 0.045",
       "unit": "公噸CO2e/百萬元",
       "source_page": 50,
       "confidence": 0.95,
       "_compact_page": 7,
       "bbox": [
-        0.454,
-        0.701,
-        0.491,
-        0.715
-      ]
+        0.8904,
+        0.7312,
+        0.9132,
+        0.7454
+      ],
+      "_pdf_page": 51
     },
     "electricity": {
-      "value": 38058300,
+      "value": 37854000,
+      "source_text": "外購電力(單位:MWh) ... 37,854",
       "unit": "kWh",
       "source_page": 53,
       "confidence": 0.95,
       "_compact_page": 10,
       "bbox": [
-        0.799,
-        0.801,
-        0.862,
-        0.815
-      ]
+        0.8578,
+        0.5298,
+        0.8894,
+        0.5457
+      ],
+      "_pdf_page": 54
     },
     "renewable_ratio": {
-      "value": 1.091,
+      "value": 1.09,
+      "source_text": "外購電力(單位:MWh) ... 37,854\n再生能源(單位:MWh) ... 415.355",
       "unit": "%",
       "source_page": 49,
-      "confidence": 0.95,
+      "confidence": 0.7,
       "_compact_page": 10,
-      "bbox": null
+      "bbox": null,
+      "_pdf_page": 54
     },
     "water": {
       "value": null,
+      "source_text": null,
       "unit": "立方公尺",
       "source_page": null,
       "confidence": 0.0,
@@ -87,10 +100,11 @@
       "bbox": null
     },
     "waste": {
-      "value": 269.3295,
+      "value": null,
+      "source_text": null,
       "unit": "公噸",
-      "source_page": 2,
-      "confidence": 0.95,
+      "source_page": null,
+      "confidence": 0.0,
       "_compact_page": 2,
       "bbox": [
         0.862,
@@ -101,105 +115,121 @@
     },
     "injury_rate": {
       "value": 0.09,
+      "source_text": "合計 ... 0.09",
       "unit": "TRIR",
       "source_page": 110,
       "confidence": 0.95,
       "_compact_page": 27,
       "bbox": [
-        0.704,
-        0.349,
-        0.741,
-        0.363
-      ]
+        0.3069,
+        0.3663,
+        0.3278,
+        0.383
+      ],
+      "_pdf_page": 112
     },
     "turnover": {
       "value": 10.4,
+      "source_text": "整體離職率(%) ... 10.4",
       "unit": "%",
       "source_page": 116,
       "confidence": 0.95,
       "_compact_page": 30,
       "bbox": [
-        0.659,
-        0.693,
-        0.696,
-        0.707
-      ]
+        0.4093,
+        0.7463,
+        0.4291,
+        0.7622
+      ],
+      "_pdf_page": 117
     },
     "female_ratio": {
       "value": 63.7,
+      "source_text": "女 ... 63.7",
       "unit": "%",
       "source_page": 75,
       "confidence": 0.95,
       "_compact_page": 23,
       "bbox": [
-        0.399,
-        0.302,
-        0.436,
-        0.316
-      ]
+        0.4096,
+        0.2092,
+        0.4316,
+        0.2268
+      ],
+      "_pdf_page": 106
     },
     "female_mgmt_ratio": {
       "value": 49.7,
+      "source_text": "總體女性主管 ... 49.7",
       "unit": "%",
       "source_page": 75,
       "confidence": 0.95,
       "_compact_page": 25,
       "bbox": [
-        0.399,
-        0.601,
-        0.436,
-        0.615
-      ]
+        0.5906,
+        0.3108,
+        0.6126,
+        0.3285
+      ],
+      "_pdf_page": 110
     },
     "training_hours": {
       "value": 75.2,
+      "source_text": "內勤員工平均訓練時數(小時) ... 75.2",
       "unit": "小時/人/年",
       "source_page": 21,
       "confidence": 0.95,
       "_compact_page": 22,
       "bbox": [
-        0.609,
-        0.821,
-        0.646,
-        0.835
-      ]
+        0.7111,
+        0.815,
+        0.733,
+        0.8326
+      ],
+      "_pdf_page": 105
     },
     "independent_director_ratio": {
-      "value": 35.71,
+      "value": 36.0,
+      "source_text": "獨立董事占董事會席次比重約36%",
       "unit": "%",
       "source_page": 73,
       "confidence": 0.95,
       "_compact_page": 13,
       "bbox": [
-        0.799,
-        0.502,
-        0.836,
-        0.516
-      ]
+        0.6703,
+        0.5107,
+        0.8265,
+        0.5283
+      ],
+      "_pdf_page": 74
     },
     "female_director_ratio": {
-      "value": 7.14,
+      "value": 7.0,
+      "source_text": "女7% 1人",
       "unit": "%",
       "source_page": 75,
       "confidence": 0.95,
       "_compact_page": 15,
       "bbox": [
-        0.299,
-        0.202,
-        0.326,
-        0.216
-      ]
+        0.6235,
+        0.8125,
+        0.63,
+        0.8301
+      ],
+      "_pdf_page": 76
     },
     "has_sustainability_officer": {
       "value": false,
+      "source_text": null,
       "unit": "布林",
       "source_page": 22,
       "confidence": 0.95,
-      "_compact_page": 15,
+      "_compact_page": null,
       "bbox": null
     },
     "assurance": {
       "value": true,
+      "source_text": "附錄九 獨立保證聲明書",
       "unit": "布林",
       "source_page": 144,
       "confidence": 0.95,
@@ -207,17 +237,19 @@
       "bbox": null
     },
     "violations": {
-      "value": 52,
+      "value": 0,
+      "source_text": "2023年南山人壽無因違反金融保險法令重大裁罰案件(註1)、亦無違反環境相關法令案件。",
       "unit": "次",
       "source_page": 80,
       "confidence": 0.95,
       "_compact_page": 20,
       "bbox": [
-        0.799,
-        0.852,
-        0.826,
-        0.866
-      ]
+        0.0259,
+        0.114,
+        0.0405,
+        0.1224
+      ],
+      "_pdf_page": 81
     }
   },
   "greenwash_claims": [],
@@ -291,6 +323,45 @@
         80
       ]
     },
-    "indicators_found": 17
+    "indicators_found": 16,
+    "compact_page_map": {
+      "1": 21,
+      "2": 22,
+      "3": 23,
+      "4": 24,
+      "5": 49,
+      "6": 50,
+      "7": 51,
+      "8": 52,
+      "9": 53,
+      "10": 54,
+      "11": 55,
+      "12": 73,
+      "13": 74,
+      "14": 75,
+      "15": 76,
+      "16": 77,
+      "17": 78,
+      "18": 79,
+      "19": 80,
+      "20": 81,
+      "21": 82,
+      "22": 105,
+      "23": 106,
+      "24": 107,
+      "25": 110,
+      "26": 111,
+      "27": 112,
+      "28": 113,
+      "29": 116,
+      "30": 117,
+      "31": 118,
+      "32": 144,
+      "33": 145,
+      "34": 146,
+      "35": 147,
+      "36": 148,
+      "37": 149
+    }
   }
 }
