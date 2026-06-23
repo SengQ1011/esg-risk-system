@@ -224,6 +224,7 @@ def _classify_articles(company_name: str, articles: list[dict]) -> list[dict]:
         events.append({
             "title":    article["title"],
             "date":     article["date"],
+            "url":      article.get("link", ""),   # 原始新聞連結
             "source":   "Google News RSS",
             "severity": cls.get("severity", "low"),
             "category": cls.get("category", "其他"),

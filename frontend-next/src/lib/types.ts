@@ -46,6 +46,22 @@ export interface Warning {
   message: string
 }
 
+export interface NewsEvent {
+  title: string
+  date: string
+  url: string
+  source: string
+  severity: "critical" | "high" | "medium" | "low" | "positive"
+  category: string
+  summary?: string
+}
+
+export interface GreenwashDetail {
+  description: string
+  claim_quote: string
+  source_page: number | null
+}
+
 export interface DecisionLight {
   level: string
   color: "green" | "yellow" | "red"
@@ -80,6 +96,8 @@ export interface CompanyDetail {
   warnings: Warning[]
   reasoning: string | null
   decision: DecisionLights
+  news_events: NewsEvent[]
+  greenwash_details: GreenwashDetail[]
 }
 
 export interface CompanyDetailResponse {

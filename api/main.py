@@ -46,6 +46,16 @@ app.mount("/pdfs", StaticFiles(directory=_PDF_DIR), name="pdfs")
 _CACHE_STALE_DAYS = 30
 
 
+def _get_news_cache(company_name: str) -> dict:
+    """讀取 news cache JSON（含事件列表與漂綠詳情）。"""
+    news_path = os.path.join(_CACHE_DIR, f"{company_name}_news.json")
+    try:
+        with open(news_path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
 def _get_page_offset(company_name: str) -> int:
     """從 indicators cache JSON 讀取 page_offset（封面/目錄頁數）。"""
     cache_path = os.path.join(_CACHE_DIR, f"{company_name}_indicators.json")
@@ -159,8 +169,11 @@ def get_company_detail(company_name: str, db: Session = Depends(get_db)):
             "message": f"存在中度負面新聞（ERS 分數：{latest.NewsEventScore:.2f}）",
         })
 
-    page_offset = _get_page_offset(company.Name)
-    cache_stale = _is_cache_stale(latest.Timestamp)
+    page_offset  = _get_page_offset(company.Name)
+    cache_stale  = _is_cache_stale(latest.Timestamp)
+    news_cache   = _get_news_cache(company.Name)
+    news_events  = news_cache.get("events", [])          # 含 url、title、date、severity
+    gw_details   = news_cache.get("greenwash_details", [])  # 含 description、claim_quote、source_page
 
     return {
         "status": "success",
@@ -184,10 +197,12 @@ def get_company_detail(company_name: str, db: Session = Depends(get_db)):
                 "report_year":     latest.ReportYear,
                 "timestamp":       latest.Timestamp.isoformat() if latest.Timestamp else None,
             },
-            "breakdown": breakdown,
-            "warnings":  warnings,
-            "reasoning": latest.Reasoning,
-            "decision":  _decision_lights(latest.TotalScore),
+            "breakdown":        breakdown,
+            "warnings":         warnings,
+            "reasoning":        latest.Reasoning,
+            "decision":         _decision_lights(latest.TotalScore),
+            "news_events":      news_events,    # 新：含 url 的完整新聞事件列表
+            "greenwash_details": gw_details,    # 新：含 source_page 的漂綠矛盾列表
         },
     }
 
