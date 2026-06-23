@@ -1,20 +1,42 @@
-# 忽略環境變數檔
+# ── 機密 ──────────────────────────────────────────────────────────
 .env
 
-# 忽略 Python 產生的快取檔
+# ── Python ────────────────────────────────────────────────────────
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
-# 忽略 SQLite 資料庫
-*.db
-*.sqlite3
-
-# 虛擬環境
+# ── 虛擬環境 ──────────────────────────────────────────────────────
 venv/
 .venv/
 env/
 
-# IDE / OS
+# ── 資料庫（生成物，從 preprocess_cache.py 重建）──────────────────
+*.db
+*.sqlite3
+
+# ── 大型 PDF 檔（從 download_reports.py 重新下載）─────────────────
+data/pdfs/
+
+# ── M1 生成物（log、step cache、compact PDF）──────────────────────
+# 保留：data/cache/*.json（demo 快取資料，需 commit）
+# 忽略：data/logs/（全部為生成物）
+data/logs/
+
+# ── Claude 個人工具（不屬於專案，各自安裝）───────────────────────
+CLAUDE.md
+.claude/skills/
+.claude/rules/
+# 保留：.claude/rules/（專案規範，需 commit）
+
+# ── Next.js 前端（待建立）────────────────────────────────────────
+node_modules/
+.next/
+out/
+
+# ── IDE / OS ──────────────────────────────────────────────────────
 .vscode/
 .idea/
 .DS_Store
+Thumbs.db

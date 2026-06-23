@@ -1,0 +1,118 @@
+{
+  "company_name": "台達電",
+  "ticker": "2308",
+  "industry": "電子製造業",
+  "report_year": 2023,
+  "report_title": "台達電子2023年永續報告書",
+  "indicators": {
+    "ghg_scope1": {
+      "value": 89234,
+      "unit": "公噸CO2e",
+      "source_page": 45,
+      "confidence": 0.95
+    },
+    "ghg_scope2": {
+      "value": 320456,
+      "unit": "公噸CO2e",
+      "source_page": 45,
+      "confidence": 0.95
+    },
+    "ghg_scope3": {
+      "value": 1234567,
+      "unit": "公噸CO2e",
+      "source_page": 46,
+      "confidence": 0.85
+    },
+    "carbon_intensity": {
+      "value": 15.2,
+      "unit": "公噸CO2e/百萬元",
+      "source_page": 47,
+      "confidence": 0.92
+    },
+    "electricity": {
+      "value": 2340000000,
+      "unit": "kWh",
+      "source_page": 48,
+      "confidence": 0.95
+    },
+    "renewable_ratio": {
+      "value": 48.3,
+      "unit": "%",
+      "source_page": 49,
+      "confidence": 0.95
+    },
+    "water": {
+      "value": 3456789,
+      "unit": "立方公尺",
+      "source_page": 52,
+      "confidence": 0.90
+    },
+    "waste": {
+      "value": 12345,
+      "unit": "公噸",
+      "source_page": 54,
+      "confidence": 0.90
+    },
+    "injury_rate": {
+      "value": 0.08,
+      "unit": "TRIR",
+      "source_page": 62,
+      "confidence": 0.95
+    },
+    "turnover": {
+      "value": 5.5,
+      "unit": "%",
+      "source_page": 63,
+      "confidence": 0.95
+    },
+    "female_ratio": {
+      "value": 52,
+      "unit": "%",
+      "source_page": 65,
+      "confidence": 0.95
+    },
+    "female_mgmt_ratio": {
+      "value": 38,
+      "unit": "%",
+      "source_page": 65,
+      "confidence": 0.95
+    },
+    "training_hours": {
+      "value": 62,
+      "unit": "小時/人/年",
+      "source_page": 68,
+      "confidence": 0.92
+    },
+    "independent_director_ratio": {
+      "value": 62,
+      "unit": "%",
+      "source_page": 78,
+      "confidence": 0.98
+    },
+    "female_director_ratio": {
+      "value": 28,
+      "unit": "%",
+      "source_page": 78,
+      "confidence": 0.98
+    },
+    "has_sustainability_officer": {
+      "value": true,
+      "unit": "布林",
+      "source_page": 22,
+      "confidence": 1.0
+    },
+    "assurance": {
+      "value": true,
+      "unit": "布林",
+      "source_page": 112,
+      "confidence": 1.0
+    },
+    "violations": {
+      "value": 0,
+      "unit": "次",
+      "source_page": 80,
+      "confidence": 0.98
+    }
+  },
+  "greenwash_claims": []
+}

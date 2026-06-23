@@ -8,3 +8,6 @@ pandas
 requests
 beautifulsoup4
 pydantic
+pyyaml
+pdfplumber
+pypdf

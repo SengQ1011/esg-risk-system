@@ -1,0 +1,33 @@
+{
+  "company_name": "台達電",
+  "ticker": "2308",
+  "events": [
+    {
+      "title": "台達電榮獲2025 TCSA台灣永續獎首獎",
+      "date": "2025-09-18",
+      "category": "正面",
+      "severity": "positive",
+      "intensity": 0.0,
+      "summary": "台達電子榮獲2025年TCSA台灣永續獎首獎，連續多年於永續評鑑中獲得頂級評等。"
+    },
+    {
+      "title": "台達電完成2023年度GHG盤查確信，範疇三揭露完整度大幅提升",
+      "date": "2024-03-15",
+      "category": "環境",
+      "severity": "low",
+      "intensity": 0.05,
+      "summary": "台達電完成第三方確信，範疇三溫室氣體排放揭露涵蓋15個類別，完整度同業領先。"
+    },
+    {
+      "title": "台達電再生能源使用比例突破48%，2030目標100%",
+      "date": "2024-01-10",
+      "category": "環境",
+      "severity": "positive",
+      "intensity": 0.0,
+      "summary": "台達電2023年再生能源使用比例達48.3%，依循RE100承諾持續提升，2030年目標達成100%。"
+    }
+  ],
+  "news_event_score": 0.05,
+  "greenwash_flag": false,
+  "greenwash_reasons": []
+}
