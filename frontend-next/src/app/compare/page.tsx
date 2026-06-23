@@ -1,33 +1,123 @@
 import Link from "next/link"
-import { AlertTriangle, BarChart3 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { GradeBadge } from "@/components/grade-badge"
+import { AlertTriangle, BarChart3, Building2 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
 import { CompareRadarChart } from "@/components/compare-radar-chart"
 import { fetchDashboard } from "@/lib/api"
 import type { DashboardCompany } from "@/lib/types"
 
-function ScoreCell({ score }: { score: number }) {
-  const color =
-    score >= 70 ? "text-green-600" : score >= 50 ? "text-yellow-600" : "text-red-600"
-  return <span className={`font-bold ${color}`}>{score.toFixed(1)}</span>
+type Signal = "green" | "yellow" | "red"
+
+function deriveSignal(score: number): Signal {
+  return score >= 70 ? "green" : score >= 50 ? "yellow" : "red"
 }
 
-function CompanyCol({ c }: { c: DashboardCompany }) {
+const signalConfig = {
+  green:  { dot: "bg-green-500", ring: "ring-green-500/30",  text: "text-green-600",  label: "低風險" },
+  yellow: { dot: "bg-amber-500", ring: "ring-amber-500/40",  text: "text-amber-500",  label: "中風險" },
+  red:    { dot: "bg-red-500",   ring: "ring-red-500/30",    text: "text-red-600",    label: "高風險" },
+} as const
+
+const gradeColor: Record<string, string> = {
+  A:    "text-green-700 bg-green-50 border-green-200",
+  "B+": "text-emerald-700 bg-emerald-50 border-emerald-200",
+  B:    "text-yellow-700 bg-yellow-50 border-yellow-200",
+  "B-": "text-orange-700 bg-orange-50 border-orange-200",
+  C:    "text-red-700 bg-red-50 border-red-200",
+}
+
+function ScoreBar({ score, max = 100 }: { score: number; max?: number }) {
+  const pct   = Math.min(100, (score / max) * 100)
+  const color = score >= 70 ? "bg-green-500" : score >= 50 ? "bg-amber-500" : "bg-red-500"
   return (
-    <div className="flex flex-col items-center gap-1 text-center">
-      <Link
-        href={`/company/${encodeURIComponent(c.name)}`}
-        className="text-base font-bold text-gray-900 hover:text-green-700"
-      >
-        {c.name}
-      </Link>
-      <span className="text-xs text-gray-400">{c.ticker} · {c.industry}</span>
-      <GradeBadge grade={c.grade} />
-      <div className="mt-1 text-2xl font-extrabold text-gray-900">
-        {c.total_score.toFixed(1)}
+    <div className="flex items-center gap-2">
+      <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+        <div className={cn("h-full rounded-full transition-all", color)} style={{ width: `${pct}%` }} />
       </div>
-      <div className="text-xs text-gray-400">/ 100</div>
+      <span className="w-10 text-right text-xs font-medium tabular-nums">{score.toFixed(1)}</span>
     </div>
+  )
+}
+
+function CompanyScoreCard({ c }: { c: DashboardCompany }) {
+  const signal = deriveSignal(c.total_score)
+  const cfg    = signalConfig[signal]
+  const gCls   = gradeColor[c.grade] ?? "text-gray-700 bg-gray-50 border-gray-200"
+
+  return (
+    <Card className="flex flex-col">
+      <CardContent className="flex flex-1 flex-col gap-4 p-5">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Building2 className="size-4" />
+            </div>
+            <div className="min-w-0">
+              <Link
+                href={`/company/${encodeURIComponent(c.name)}`}
+                className="truncate font-semibold text-foreground hover:text-primary"
+              >
+                {c.name}
+              </Link>
+              <p className="text-xs text-muted-foreground">{c.ticker}</p>
+            </div>
+          </div>
+          <Badge variant="outline" className={cn("shrink-0 font-bold", gCls)}>{c.grade}</Badge>
+        </div>
+
+        {/* Total score + signal */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-baseline gap-1">
+            <span className="text-3xl font-bold tabular-nums">{c.total_score.toFixed(1)}</span>
+            <span className="text-sm text-muted-foreground">/100</span>
+          </div>
+          <div className={cn("flex items-center gap-1.5 rounded-full border px-2.5 py-1 ring-1 ring-inset", cfg.ring)}>
+            <span className="relative flex size-2.5">
+              <span className={cn("absolute inline-flex h-full w-full animate-ping rounded-full opacity-60", cfg.dot)} />
+              <span className={cn("relative inline-flex size-2.5 rounded-full", cfg.dot)} />
+            </span>
+            <span className={cn("text-xs font-medium", cfg.text)}>{cfg.label}</span>
+          </div>
+        </div>
+
+        {/* E/S/G bars */}
+        <div className="flex flex-col gap-2">
+          {[
+            { label: "E 環境（40%）", score: c.e_score },
+            { label: "S 社會（30%）", score: c.s_score },
+            { label: "G 治理（30%）", score: c.g_score },
+          ].map(({ label, score }) => (
+            <div key={label}>
+              <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+                <span>{label}</span>
+              </div>
+              <ScoreBar score={score} />
+            </div>
+          ))}
+        </div>
+
+        {/* Flags */}
+        <div className="flex flex-wrap gap-1.5">
+          {c.greenwash_flag && (
+            <Badge variant="outline" className="border-orange-200 bg-orange-50 text-orange-700 text-[11px]">
+              漂綠爭議
+            </Badge>
+          )}
+          {c.news_event_score >= 0.5 && (
+            <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700 text-[11px]">
+              高風險新聞
+            </Badge>
+          )}
+          {!c.greenwash_flag && c.news_event_score < 0.5 && (
+            <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700 text-[11px]">
+              無重大警示
+            </Badge>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -52,121 +142,106 @@ export default async function ComparePage() {
   }
 
   const { companies, radar_data } = data!
-  const companyNames = companies.map((c) => c.name)
+  const companyNames = companies.map((c: DashboardCompany) => c.name)
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <BarChart3 className="size-6 text-green-600" />
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">三家公司 ESG 對比</h1>
-          <p className="text-sm text-gray-500">台達電 · 中鋼 · 南山人壽 — 2023 年永續報告書</p>
+    <div className="flex flex-col gap-8">
+      {/* Header */}
+      <div>
+        <div className="flex items-center gap-2">
+          <BarChart3 className="size-5 text-primary" />
+          <h1 className="text-2xl font-semibold tracking-tight">三家公司 ESG 比較</h1>
         </div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          台達電 · 中鋼 · 南山人壽 — 2023 年度永續報告書對比分析
+        </p>
       </div>
 
       {/* Score cards */}
-      <div className="grid grid-cols-3 gap-4">
-        {companies.map((c) => (
-          <Card key={c.name}>
-            <CardContent className="pt-5">
-              <CompanyCol c={c} />
-            </CardContent>
-          </Card>
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+        {companies.map((c: DashboardCompany) => (
+          <CompanyScoreCard key={c.name} c={c} />
         ))}
       </div>
 
-      {/* Radar */}
+      {/* Radar chart */}
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold text-gray-700">E/S/G 三維雷達比較</CardTitle>
+        <CardHeader>
+          <CardTitle className="text-base">E/S/G 三維雷達對比</CardTitle>
+          <CardDescription>三家公司各維度評分視覺化比較（滿分 100）</CardDescription>
         </CardHeader>
         <CardContent>
           <CompareRadarChart data={radar_data} companies={companyNames} />
         </CardContent>
       </Card>
 
-      {/* Comparison Table */}
+      {/* Comparison table */}
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold text-gray-700">詳細分數對照表</CardTitle>
+        <CardHeader>
+          <CardTitle className="text-base">詳細分數對照表</CardTitle>
+          <CardDescription>各評分維度與風險指標橫向比較</CardDescription>
         </CardHeader>
         <CardContent>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left text-xs text-gray-500">
-                <th className="pb-2 font-medium">指標</th>
-                {companies.map((c) => (
-                  <th key={c.name} className="pb-2 text-right font-medium">
-                    {c.name}
-                  </th>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs text-muted-foreground">
+                  <th className="pb-3 font-medium">指標</th>
+                  {companies.map((c: DashboardCompany) => (
+                    <th key={c.name} className="pb-3 text-right font-medium">{c.name}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { label: "ESG 總分",      key: "total_score" as const, format: (v: number) => v.toFixed(1) },
+                  { label: "E 環境（40%）", key: "e_score" as const,     format: (v: number) => v.toFixed(1) },
+                  { label: "S 社會（30%）", key: "s_score" as const,     format: (v: number) => v.toFixed(1) },
+                  { label: "G 治理（30%）", key: "g_score" as const,     format: (v: number) => v.toFixed(1) },
+                ].map(({ label, key, format }) => (
+                  <tr key={label} className="border-b last:border-0">
+                    <td className="py-3 text-muted-foreground">{label}</td>
+                    {companies.map((c: DashboardCompany) => {
+                      const v = c[key]
+                      const color = v >= 70 ? "text-green-600" : v >= 50 ? "text-amber-500" : "text-red-600"
+                      return (
+                        <td key={c.name} className={cn("py-3 text-right font-bold tabular-nums", color)}>
+                          {format(v)}
+                        </td>
+                      )
+                    })}
+                  </tr>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b">
-                <td className="py-2 text-gray-600">ESG 總分</td>
-                {companies.map((c) => (
-                  <td key={c.name} className="py-2 text-right">
-                    <ScoreCell score={c.total_score} />
-                  </td>
-                ))}
-              </tr>
-              <tr className="border-b">
-                <td className="py-2 text-gray-600">E 環境 (40%)</td>
-                {companies.map((c) => (
-                  <td key={c.name} className="py-2 text-right">
-                    <ScoreCell score={c.e_score} />
-                  </td>
-                ))}
-              </tr>
-              <tr className="border-b">
-                <td className="py-2 text-gray-600">S 社會 (30%)</td>
-                {companies.map((c) => (
-                  <td key={c.name} className="py-2 text-right">
-                    <ScoreCell score={c.s_score} />
-                  </td>
-                ))}
-              </tr>
-              <tr className="border-b">
-                <td className="py-2 text-gray-600">G 治理 (30%)</td>
-                {companies.map((c) => (
-                  <td key={c.name} className="py-2 text-right">
-                    <ScoreCell score={c.g_score} />
-                  </td>
-                ))}
-              </tr>
-              <tr className="border-b">
-                <td className="py-2 text-gray-600">新聞風險 (ERS)</td>
-                {companies.map((c) => (
-                  <td key={c.name} className="py-2 text-right text-gray-500">
-                    {c.news_event_score.toFixed(2)}
-                  </td>
-                ))}
-              </tr>
-              <tr>
-                <td className="py-2 text-gray-600">漂綠旗標</td>
-                {companies.map((c) => (
-                  <td key={c.name} className="py-2 text-right">
-                    {c.greenwash_flag ? (
-                      <span className="text-orange-600 font-medium">是</span>
-                    ) : (
-                      <span className="text-gray-400">否</span>
-                    )}
-                  </td>
-                ))}
-              </tr>
-            </tbody>
-          </table>
+                <tr className="border-b">
+                  <td className="py-3 text-muted-foreground">新聞風險（ERS）</td>
+                  {companies.map((c: DashboardCompany) => (
+                    <td key={c.name} className="py-3 text-right tabular-nums text-muted-foreground">
+                      {c.news_event_score.toFixed(2)}
+                    </td>
+                  ))}
+                </tr>
+                <tr>
+                  <td className="py-3 text-muted-foreground">漂綠旗標</td>
+                  {companies.map((c: DashboardCompany) => (
+                    <td key={c.name} className="py-3 text-right">
+                      {c.greenwash_flag
+                        ? <span className="font-medium text-orange-600">是</span>
+                        : <span className="text-muted-foreground">否</span>}
+                    </td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Legend */}
-      <div className="rounded-lg border bg-white p-4 text-xs text-gray-400">
-        <span className="font-semibold text-gray-600">分級說明：</span>
+      <div className="rounded-lg border bg-muted/30 p-4 text-xs text-muted-foreground">
+        <span className="font-semibold text-foreground">分級說明：</span>
         A ≥ 80（優良）· B+ ≥ 70（良好）· B ≥ 60（普通）· B- ≥ 50（待改善）· C &lt; 50（高風險）
         <br />
-        <span className="font-semibold text-gray-600">方法學：</span>
-        指標正規化依 GRI/SASB，新聞扣分仿 TESG ERS（事件強度 × 時間衰減），外部 YAML 權重可公開揭露。
+        <span className="font-semibold text-foreground">方法學：</span>
+        指標正規化依 GRI/SASB，新聞扣分仿 TESG ERS，外部 YAML 權重設定可公開揭露。
       </div>
     </div>
   )
