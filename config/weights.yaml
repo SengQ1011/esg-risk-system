@@ -1,0 +1,74 @@
+# ESG 評分引擎權重設定
+# 依據：GRI / SASB 指標框架，分級仿 TESG 固定門檻法
+# 歐盟 ESG 評級法規方向：權重公開揭露，確保透明可解釋
+
+# ── 構面權重（三維合計必須為 1.0）──────────────────────────
+dimensions:
+  E: 0.40   # 環境 (Environment)
+  S: 0.30   # 社會 (Social)
+  G: 0.30   # 治理 (Governance)
+
+# ── E 構面內指標權重（合計必須為 1.0）────────────────────────
+# 依據：GRI 305 / GRI 302 / GRI 303 / GRI 306 / SASB
+E_indicators:
+  ghg_scope1: 0.25        # 範疇一溫室氣體（直接排放，GRI 305-1）
+  ghg_scope2: 0.15        # 範疇二溫室氣體（間接能源，GRI 305-2）
+  ghg_scope3: 0.10        # 範疇三溫室氣體（價值鏈，GRI 305-3）
+  carbon_intensity: 0.25  # 碳強度/每百萬元營收（SASB）
+  electricity: 0.05       # 總用電量（GRI 302-1）
+  renewable_ratio: 0.10   # 再生能源占比（GRI 302）
+  water: 0.05             # 用水量（GRI 303-5）
+  waste: 0.05             # 廢棄物總量（GRI 306）
+
+# ── S 構面內指標權重（合計必須為 1.0）────────────────────────
+# 依據：GRI 403 / GRI 401 / GRI 405 / GRI 404
+S_indicators:
+  injury_rate: 0.25         # 失能傷害頻率/職災率（GRI 403）
+  turnover: 0.15            # 員工流動率（GRI 401）
+  female_ratio: 0.20        # 女性員工比例（GRI 405-1）
+  female_mgmt_ratio: 0.20   # 女性主管比例（GRI 405-1）
+  training_hours: 0.20      # 員工平均訓練時數（GRI 404-1）
+
+# ── G 構面內指標權重（合計必須為 1.0）────────────────────────
+# 依據：GRI 2-9 / GRI 405 / GRI 2-27
+G_indicators:
+  independent_director_ratio: 0.30   # 獨立董事比例（GRI 2-9）
+  female_director_ratio: 0.15        # 女性董事比例（GRI 405-1）
+  has_sustainability_officer: 0.15   # 是否設永續長/委員會
+  assurance: 0.15                    # 報告是否取得第三方確信
+  violations: 0.25                   # 重大違規/裁罰次數（GRI 2-27）
+
+# ── 事件調整（M2 新聞 + M3 漂綠）─────────────────────────────
+events:
+  news_max_penalty: 5.0    # news_event_score=1.0 時的最大扣分
+  greenwash_penalty: 2.0   # greenwash_flag=true 的固定扣分
+
+# ── 正規化基準值（產業最差情境參考值）────────────────────────
+# 「越低越好」指標：normalized = max(0, 1 - value / max_ref)
+# 「越高越好」指標：normalized = min(1, value / max_ref)
+# 布林值指標：1.0 = true（有設立），0.0 = false
+normalization:
+  ghg_scope1_max: 10000000     # 公噸CO2e（鋼鐵業最高水準）
+  ghg_scope2_max: 1000000      # 公噸CO2e
+  ghg_scope3_max: 5000000      # 公噸CO2e
+  carbon_intensity_max: 500    # 公噸CO2e/百萬元營收
+  electricity_max: 5000000000  # kWh
+  renewable_ratio_max: 100     # %
+  water_max: 50000000          # 立方公尺
+  waste_max: 500000            # 公噸
+  injury_rate_max: 5.0         # TRIR 比率
+  turnover_max: 30.0           # %
+  female_ratio_max: 100        # %
+  female_mgmt_ratio_max: 100   # %
+  training_hours_max: 80       # 小時/人/年
+  independent_director_ratio_max: 100  # %
+  female_director_ratio_max: 100       # %
+  violations_max: 10           # 次
+
+# ── 分級門檻（固定門檻法，仿 TESG A+~C-）────────────────────
+grade_thresholds:
+  A: 80    # 80 分以上
+  B+: 70   # 70-79
+  B: 60    # 60-69
+  B-: 50   # 50-59
+  C: 0     # 50 以下

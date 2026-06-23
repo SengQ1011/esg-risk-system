@@ -1,0 +1,118 @@
+{
+  "company_name": "南山人壽",
+  "ticker": "5874",
+  "industry": "保險業",
+  "report_year": 2023,
+  "report_title": "南山人壽2023年永續報告書",
+  "indicators": {
+    "ghg_scope1": {
+      "value": 12345,
+      "unit": "公噸CO2e",
+      "source_page": 32,
+      "confidence": 0.88
+    },
+    "ghg_scope2": {
+      "value": 56789,
+      "unit": "公噸CO2e",
+      "source_page": 32,
+      "confidence": 0.88
+    },
+    "ghg_scope3": {
+      "value": 234567,
+      "unit": "公噸CO2e",
+      "source_page": 33,
+      "confidence": 0.70
+    },
+    "carbon_intensity": {
+      "value": 8.5,
+      "unit": "公噸CO2e/百萬元",
+      "source_page": 34,
+      "confidence": 0.85
+    },
+    "electricity": {
+      "value": 234567890,
+      "unit": "kWh",
+      "source_page": 35,
+      "confidence": 0.90
+    },
+    "renewable_ratio": {
+      "value": 12,
+      "unit": "%",
+      "source_page": 36,
+      "confidence": 0.88
+    },
+    "water": {
+      "value": 567890,
+      "unit": "立方公尺",
+      "source_page": 38,
+      "confidence": 0.85
+    },
+    "waste": {
+      "value": 2345,
+      "unit": "公噸",
+      "source_page": 39,
+      "confidence": 0.85
+    },
+    "injury_rate": {
+      "value": 2.8,
+      "unit": "TRIR",
+      "source_page": 48,
+      "confidence": 0.80
+    },
+    "turnover": {
+      "value": 22.5,
+      "unit": "%",
+      "source_page": 49,
+      "confidence": 0.92
+    },
+    "female_ratio": {
+      "value": 45,
+      "unit": "%",
+      "source_page": 51,
+      "confidence": 0.95
+    },
+    "female_mgmt_ratio": {
+      "value": 18,
+      "unit": "%",
+      "source_page": 51,
+      "confidence": 0.95
+    },
+    "training_hours": {
+      "value": 14,
+      "unit": "小時/人/年",
+      "source_page": 54,
+      "confidence": 0.88
+    },
+    "independent_director_ratio": {
+      "value": 33,
+      "unit": "%",
+      "source_page": 65,
+      "confidence": 0.98
+    },
+    "female_director_ratio": {
+      "value": 11,
+      "unit": "%",
+      "source_page": 65,
+      "confidence": 0.98
+    },
+    "has_sustainability_officer": {
+      "value": false,
+      "unit": "布林",
+      "source_page": null,
+      "confidence": 0.95
+    },
+    "assurance": {
+      "value": false,
+      "unit": "布林",
+      "source_page": null,
+      "confidence": 0.95
+    },
+    "violations": {
+      "value": 6,
+      "unit": "次",
+      "source_page": 67,
+      "confidence": 0.90
+    }
+  },
+  "greenwash_claims": []
+}
