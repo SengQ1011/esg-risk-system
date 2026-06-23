@@ -1,12 +1,26 @@
+"use client"
+
+import { useState, useRef } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { AlertTriangle, ArrowRight, Building2 } from "lucide-react"
+import {
+  AlertTriangle,
+  ArrowRight,
+  Building2,
+  Search,
+  UploadCloud,
+} from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
-import { fetchCompanies } from "@/lib/api"
+import { analyzeCompany } from "@/lib/api"
 import type { CompanySummary } from "@/lib/types"
 
+// ─────────────────────────────────────────────────────────────
+// CompanyCard (same visual style as before)
+// ─────────────────────────────────────────────────────────────
 type Signal = "green" | "yellow" | "red"
 
 function deriveSignal(score: number | null): Signal {
@@ -21,11 +35,11 @@ const signalConfig = {
 } as const
 
 const gradeColor: Record<string, string> = {
-  A:   "text-green-700 bg-green-50 border-green-200",
+  A:    "text-green-700 bg-green-50 border-green-200",
   "B+": "text-emerald-700 bg-emerald-50 border-emerald-200",
-  B:   "text-yellow-700 bg-yellow-50 border-yellow-200",
+  B:    "text-yellow-700 bg-yellow-50 border-yellow-200",
   "B-": "text-orange-700 bg-orange-50 border-orange-200",
-  C:   "text-red-700 bg-red-50 border-red-200",
+  C:    "text-red-700 bg-red-50 border-red-200",
 }
 
 function CompanyCard({ c }: { c: CompanySummary }) {
@@ -38,7 +52,6 @@ function CompanyCard({ c }: { c: CompanySummary }) {
     <Link href={`/company/${encodeURIComponent(c.name)}`} className="group block">
       <Card className="h-full transition-all hover:shadow-md hover:ring-1 hover:ring-primary/20">
         <CardContent className="flex h-full flex-col gap-4 p-5">
-          {/* Header */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -60,7 +73,6 @@ function CompanyCard({ c }: { c: CompanySummary }) {
             )}
           </div>
 
-          {/* Score */}
           {s ? (
             <div className="flex items-end justify-between gap-2">
               <div>
@@ -70,8 +82,6 @@ function CompanyCard({ c }: { c: CompanySummary }) {
                 </div>
                 <p className="mt-0.5 text-xs text-muted-foreground">{s.grade_label}</p>
               </div>
-
-              {/* Signal */}
               <div className={cn("flex items-center gap-1.5 rounded-full border px-2.5 py-1 ring-1 ring-inset", cfg.ring)}>
                 <span className="relative flex size-2.5">
                   <span className={cn("absolute inline-flex h-full w-full animate-ping rounded-full opacity-60", cfg.dot)} />
@@ -84,7 +94,6 @@ function CompanyCard({ c }: { c: CompanySummary }) {
             <p className="text-sm text-muted-foreground">尚無評分資料</p>
           )}
 
-          {/* E/S/G breakdown */}
           {s && (
             <div className="grid grid-cols-3 gap-1.5 rounded-lg border bg-muted/30 p-2.5 text-center">
               {[
@@ -108,7 +117,6 @@ function CompanyCard({ c }: { c: CompanySummary }) {
             </div>
           )}
 
-          {/* Footer link */}
           <div className="mt-auto flex items-center justify-end gap-1 text-xs text-muted-foreground group-hover:text-primary">
             查看完整評分卡 <ArrowRight className="size-3" />
           </div>
@@ -118,40 +126,150 @@ function CompanyCard({ c }: { c: CompanySummary }) {
   )
 }
 
-export default async function HomePage() {
-  let companies: CompanySummary[] = []
-  let error: string | null = null
+// ─────────────────────────────────────────────────────────────
+// AnalyzeForm — client-side search + upload
+// ─────────────────────────────────────────────────────────────
+function AnalyzeForm() {
+  const router  = useRouter()
+  const [query, setQuery]     = useState("")
+  const [file,  setFile]      = useState<File | null>(null)
+  const [dragging, setDragging] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error,  setError]    = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  try {
-    const res = await fetchCompanies()
-    companies = res.data
-  } catch (e) {
-    error = e instanceof Error ? e.message : "無法連線至後端 API"
+  async function handleSubmit() {
+    const name = query.trim()
+    if (!name && !file) {
+      setError("請輸入公司名稱 / 股票代號，或上傳 PDF 報告書")
+      return
+    }
+    setError(null)
+    setLoading(true)
+    try {
+      const res = await analyzeCompany(name || "未命名公司", file ?? undefined)
+      router.push(`/job/${res.job_id}?company=${encodeURIComponent(res.company_name)}`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "發生未知錯誤")
+      setLoading(false)
+    }
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault()
+    setDragging(false)
+    const dropped = e.dataTransfer.files[0]
+    if (dropped?.type === "application/pdf") {
+      setFile(dropped)
+    }
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* Page header */}
+    <Card className="border-primary/20 shadow-sm">
+      <CardContent className="flex flex-col gap-5 p-6">
+        {/* Search input */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              placeholder="例：台積電、2330"
+              className="w-full rounded-lg border bg-background py-2 pl-9 pr-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
+            />
+          </div>
+          <Button
+            onClick={handleSubmit}
+            disabled={loading}
+            size="lg"
+            className="shrink-0"
+          >
+            {loading ? "分析中…" : "開始分析"}
+          </Button>
+        </div>
+
+        {/* PDF drop zone */}
+        <div
+          className={cn(
+            "flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed p-6 text-center transition-colors",
+            dragging
+              ? "border-primary bg-primary/5 text-primary"
+              : "border-border text-muted-foreground hover:border-primary/50 hover:bg-muted/30",
+          )}
+          onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <UploadCloud className="size-8 shrink-0" />
+          {file ? (
+            <p className="text-sm font-medium text-foreground">{file.name}</p>
+          ) : (
+            <>
+              <p className="text-sm font-medium">拖曳或點擊上傳永續報告書 PDF</p>
+              <p className="text-xs text-muted-foreground">支援 .pdf，最大 50 MB</p>
+            </>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/pdf"
+            className="sr-only"
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f) setFile(f)
+            }}
+          />
+        </div>
+
+        {error && (
+          <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <AlertTriangle className="size-4 shrink-0" />
+            {error}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+// CompanyListSection — fetches companies on the client
+// ─────────────────────────────────────────────────────────────
+import { useEffect } from "react"
+import { fetchCompanies } from "@/lib/api"
+
+function CompanyListSection() {
+  const [companies, setCompanies] = useState<CompanySummary[]>([])
+  const [listError, setListError] = useState<string | null>(null)
+  const [listLoading, setListLoading] = useState(true)
+
+  useEffect(() => {
+    fetchCompanies()
+      .then((res) => setCompanies(res.data))
+      .catch((e) => setListError(e instanceof Error ? e.message : "無法連線至後端 API"))
+      .finally(() => setListLoading(false))
+  }, [])
+
+  return (
+    <section className="flex flex-col gap-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">公司 ESG 評分總覽</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          台灣上市公司 2023 年度永續報告書 · E 40% + S 30% + G 30% · 指標依 GRI/SASB 框架
-        </p>
+        <h2 className="text-lg font-semibold tracking-tight">已完成分析</h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">點擊卡片直接查看完整評分卡</p>
       </div>
 
-      {/* Error */}
-      {error && (
+      {listError && (
         <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           <AlertTriangle className="size-4 shrink-0" />
-          {error} — 請確認後端 API 已啟動（uvicorn api.main:app --port 8000）
+          {listError} — 請確認後端 API 已啟動（uvicorn api.main:app --port 8000）
         </div>
       )}
 
-      {/* Company cards */}
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {companies.length > 0
-          ? companies.map((c) => <CompanyCard key={c.name} c={c} />)
-          : !error && [0, 1, 2].map((i) => (
+        {listLoading
+          ? [0, 1, 2].map((i) => (
               <Card key={i}>
                 <CardContent className="flex flex-col gap-4 p-5">
                   <div className="flex items-center gap-3">
@@ -166,8 +284,36 @@ export default async function HomePage() {
                 </CardContent>
               </Card>
             ))
+          : companies.map((c) => <CompanyCard key={c.name} c={c} />)
         }
       </div>
+
+      {!listLoading && !listError && companies.length === 0 && (
+        <p className="text-sm text-muted-foreground">目前尚無已分析公司，使用上方搜尋框開始第一筆分析。</p>
+      )}
+    </section>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+// Page
+// ─────────────────────────────────────────────────────────────
+export default function HomePage() {
+  return (
+    <div className="flex flex-col gap-10">
+      {/* Hero / Search section */}
+      <section id="analyze" className="flex flex-col gap-4 scroll-mt-20">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">ESG 風險評估</h1>
+          <p className="mt-1.5 text-muted-foreground">
+            輸入台灣上市公司名稱或股票代號，或上傳永續報告書 PDF，自動產出 E/S/G 三維評分卡。
+          </p>
+        </div>
+        <AnalyzeForm />
+      </section>
+
+      {/* Existing companies */}
+      <CompanyListSection />
 
       {/* Method note */}
       <div className="rounded-lg border bg-muted/30 p-4 text-xs text-muted-foreground">

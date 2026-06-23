@@ -130,3 +130,17 @@ export interface HistoryResponse {
   status: string
   data: HistoryEntry[]
 }
+
+export interface JobStatus {
+  job_id: string
+  company_name: string
+  step: string
+  progress: number  // 0-100
+  done: boolean
+  error: string | null
+}
+
+export interface AnalyzeResponse {
+  job_id: string
+  company_name: string
+}

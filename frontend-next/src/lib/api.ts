@@ -3,6 +3,7 @@ import type {
   CompanyDetailResponse,
   DashboardResponse,
   HistoryResponse,
+  AnalyzeResponse,
 } from "./types"
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
@@ -30,4 +31,21 @@ export async function fetchDashboard(): Promise<DashboardResponse> {
 
 export async function fetchHistory(name: string): Promise<HistoryResponse> {
   return apiFetch<HistoryResponse>(`/api/company/${encodeURIComponent(name)}/history`)
+}
+
+/**
+ * Mock: POST /api/company/analyze
+ * In production this would send multipart/form-data to the backend.
+ * Returns a mock job_id so the frontend flow can be demonstrated.
+ */
+export async function analyzeCompany(
+  companyName: string,
+  _file?: File,
+): Promise<AnalyzeResponse> {
+  // Simulate brief network delay
+  await new Promise((resolve) => setTimeout(resolve, 300))
+  return {
+    job_id: `mock-${Date.now()}`,
+    company_name: companyName || "新公司",
+  }
 }

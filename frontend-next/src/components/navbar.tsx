@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ShieldCheck } from "lucide-react"
+import { PlusCircle, ShieldCheck } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
 export function Navbar() {
@@ -34,6 +34,13 @@ export function Navbar() {
           <Badge variant="outline" className="hidden font-normal sm:inline-flex">
             評估方法論 v2.0
           </Badge>
+          <Link
+            href="/#analyze"
+            className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-primary px-2.5 text-[0.8rem] font-medium text-primary-foreground transition-colors hover:bg-primary/80"
+          >
+            <PlusCircle className="size-3.5" />
+            分析新公司
+          </Link>
         </div>
       </div>
     </header>
