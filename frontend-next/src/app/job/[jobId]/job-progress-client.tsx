@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import {
   AlertTriangle,
@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
+import { fetchJobStatus, getWsUrl } from "@/lib/api"
 import type { JobStatus } from "@/lib/types"
 
 // ─────────────────────────────────────────────────────────────
@@ -132,7 +133,7 @@ interface Props {
 
 export function JobProgressClient({ jobId, initialCompanyName }: Props) {
   const router = useRouter()
-  const [status, setStatus]         = useState<JobStatus>({
+  const [status, setStatus]     = useState<JobStatus>({
     job_id:       jobId,
     company_name: initialCompanyName,
     step:         STEPS[0].label,
@@ -140,34 +141,96 @@ export function JobProgressClient({ jobId, initialCompanyName }: Props) {
     done:         false,
     error:        null,
   })
-  const [completed,   setCompleted] = useState(false)
-  const [countdown,   setCountdown] = useState(3)
-  const frameIndexRef               = useRef(0)
+  const [completed, setCompleted] = useState(false)
+  const [countdown, setCountdown] = useState(3)
+  const wsRef                     = useRef<WebSocket | null>(null)
+  const pollRef                   = useRef<ReturnType<typeof setInterval> | null>(null)
+  const doneRef                   = useRef(false)
 
-  // Mock WebSocket simulation: advance through MOCK_FRAMES every 1.5s
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const nextIndex = frameIndexRef.current
-      if (nextIndex >= MOCK_FRAMES.length) {
-        clearInterval(interval)
+  // Map backend job status to our JobStatus shape
+  const applyJobData = useCallback((data: {
+    job_id: string; company_name: string; status: string;
+    current_step: string; progress: number; error_message: string | null
+  }) => {
+    if (doneRef.current) return
+    const done  = data.status === "done"
+    const error = data.status === "error" ? (data.error_message ?? "分析失敗") : null
+    setStatus({
+      job_id:       data.job_id,
+      company_name: data.company_name || initialCompanyName,
+      step:         data.current_step ?? "",
+      progress:     data.progress ?? 0,
+      done,
+      error,
+    })
+    if (done || error) {
+      doneRef.current = true
+      if (done) setCompleted(true)
+    }
+  }, [initialCompanyName])
+
+  // Polling fallback — used when WS is unavailable
+  const startPolling = useCallback(() => {
+    if (pollRef.current) return
+    pollRef.current = setInterval(async () => {
+      if (doneRef.current) {
+        clearInterval(pollRef.current!)
         return
       }
-      const frame = {
-        ...MOCK_FRAMES[nextIndex],
-        job_id:       jobId,
-        company_name: initialCompanyName,
-      }
-      setStatus(frame)
-      frameIndexRef.current = nextIndex + 1
+      const data = await fetchJobStatus(jobId)
+      if (data) applyJobData(data)
+    }, 2500)
+  }, [jobId, applyJobData])
 
-      if (frame.done) {
-        clearInterval(interval)
-        setCompleted(true)
-      }
-    }, 1500)
+  // WebSocket with polling fallback
+  useEffect(() => {
+    const wsUrl = getWsUrl(`/ws/job/${jobId}`)
+    let ws: WebSocket
 
-    return () => clearInterval(interval)
-  }, [jobId, initialCompanyName])
+    try {
+      ws = new WebSocket(wsUrl)
+      wsRef.current = ws
+
+      ws.onmessage = (evt) => {
+        try {
+          // WS sends: {step, progress, done, company_name, error?}
+          const msg = JSON.parse(evt.data) as {
+            step: string; progress: number; done: boolean;
+            company_name?: string; error?: string
+          }
+          if (doneRef.current) return
+          const company = msg.company_name || initialCompanyName
+          const error   = msg.error ?? null
+          setStatus({
+            job_id:       jobId,
+            company_name: company,
+            step:         msg.step,
+            progress:     msg.progress,
+            done:         msg.done,
+            error,
+          })
+          if (msg.done || error) {
+            doneRef.current = true
+            if (msg.done) setCompleted(true)
+          }
+        } catch { /* ignore parse errors */ }
+      }
+
+      ws.onerror = () => startPolling()
+      ws.onclose = () => {
+        // If not yet done, fall back to polling to catch final status
+        if (!doneRef.current) startPolling()
+      }
+    } catch {
+      // WebSocket not available — use polling
+      startPolling()
+    }
+
+    return () => {
+      wsRef.current?.close()
+      if (pollRef.current) clearInterval(pollRef.current)
+    }
+  }, [jobId, initialCompanyName, startPolling])
 
   // Countdown + auto-redirect when done
   useEffect(() => {

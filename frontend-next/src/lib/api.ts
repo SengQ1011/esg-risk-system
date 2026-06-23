@@ -33,19 +33,44 @@ export async function fetchHistory(name: string): Promise<HistoryResponse> {
   return apiFetch<HistoryResponse>(`/api/company/${encodeURIComponent(name)}/history`)
 }
 
-/**
- * Mock: POST /api/company/analyze
- * In production this would send multipart/form-data to the backend.
- * Returns a mock job_id so the frontend flow can be demonstrated.
- */
+/** POST /api/company/analyze — multipart/form-data */
 export async function analyzeCompany(
   companyName: string,
-  _file?: File,
+  file?: File,
 ): Promise<AnalyzeResponse> {
-  // Simulate brief network delay
-  await new Promise((resolve) => setTimeout(resolve, 300))
-  return {
-    job_id: `mock-${Date.now()}`,
-    company_name: companyName || "新公司",
+  const form = new FormData()
+  if (companyName) form.append("company_name", companyName)
+  form.append("year", "2023")
+  if (file) form.append("pdf_file", file)
+
+  const res = await fetch(`${BASE_URL}/api/company/analyze`, {
+    method: "POST",
+    body: form,
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: res.statusText }))
+    throw new Error(body.detail ?? `HTTP ${res.status}`)
   }
+  const json = await res.json()
+  return json.data as AnalyzeResponse
+}
+
+/** GET /api/job/{jobId} — polling fallback */
+export async function fetchJobStatus(jobId: string) {
+  const res = await fetch(`${BASE_URL}/api/job/${jobId}`, { cache: "no-store" })
+  if (!res.ok) return null
+  const json = await res.json()
+  return json.data as {
+    job_id: string
+    company_name: string
+    status: string       // pending | running | done | error
+    current_step: string
+    progress: number
+    error_message: string | null
+  }
+}
+
+/** WebSocket URL：http → ws，https → wss */
+export function getWsUrl(path: string): string {
+  return `${BASE_URL.replace(/^http/, "ws")}${path}`
 }
