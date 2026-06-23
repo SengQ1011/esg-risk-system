@@ -85,7 +85,7 @@ NEWS_SCORING_PROMPT = """
 def extract_indicators_from_text(report_text: str) -> dict:
     """從報告書文字抽取 E/S/G 量化指標（離線預處理用）"""
     response = client.models.generate_content(
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         contents=report_text,
         config=types.GenerateContentConfig(
             system_instruction=INDICATOR_EXTRACTION_PROMPT,
@@ -100,7 +100,7 @@ def score_news_events(news_items: list[dict]) -> dict:
     """對新聞事件清單進行 ERS 式評分（離線預處理用）"""
     contents = json.dumps(news_items, ensure_ascii=False)
     response = client.models.generate_content(
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         contents=contents,
         config=types.GenerateContentConfig(
             system_instruction=NEWS_SCORING_PROMPT,

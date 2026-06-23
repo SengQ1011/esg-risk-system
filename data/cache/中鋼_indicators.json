@@ -3,119 +3,237 @@
   "ticker": "2002",
   "industry": "鋼鐵業",
   "report_year": 2023,
-  "report_title": "中國鋼鐵2023年永續報告書",
+  "report_title": "中鋼2023年永續報告書",
   "indicators": {
     "ghg_scope1": {
-      "value": 8234567,
+      "value": 16809455,
       "unit": "公噸CO2e",
-      "source_page": 38,
-      "confidence": 0.95
+      "source_page": 45,
+      "confidence": 0.95,
+      "_compact_page": 24,
+      "bbox": [
+        0.399,
+        0.162,
+        0.501,
+        0.173
+      ]
     },
     "ghg_scope2": {
-      "value": 456789,
+      "value": null,
       "unit": "公噸CO2e",
-      "source_page": 38,
-      "confidence": 0.95
+      "source_page": 45,
+      "confidence": 0.0,
+      "_compact_page": null,
+      "bbox": null
     },
     "ghg_scope3": {
-      "value": 2345678,
+      "value": null,
       "unit": "公噸CO2e",
-      "source_page": 39,
-      "confidence": 0.80
+      "source_page": 45,
+      "confidence": 0.0,
+      "_compact_page": null,
+      "bbox": null
     },
     "carbon_intensity": {
-      "value": 385,
+      "value": null,
       "unit": "公噸CO2e/百萬元",
-      "source_page": 40,
-      "confidence": 0.90
+      "source_page": 45,
+      "confidence": 0.0,
+      "_compact_page": null,
+      "bbox": null
     },
     "electricity": {
-      "value": 4567890000,
+      "value": 2560058554,
       "unit": "kWh",
-      "source_page": 41,
-      "confidence": 0.95
+      "source_page": 57,
+      "confidence": 0.7,
+      "_compact_page": 23,
+      "bbox": null
     },
     "renewable_ratio": {
-      "value": 3.2,
+      "value": 0.05221,
       "unit": "%",
-      "source_page": 42,
-      "confidence": 0.92
+      "source_page": 57,
+      "confidence": 0.7,
+      "_compact_page": 24,
+      "bbox": [
+        0.473,
+        0.3,
+        0.501,
+        0.311
+      ]
     },
     "water": {
-      "value": 45678901,
+      "value": 40962000,
       "unit": "立方公尺",
-      "source_page": 45,
-      "confidence": 0.90
+      "source_page": 61,
+      "confidence": 0.95,
+      "_compact_page": 24,
+      "bbox": [
+        0.649,
+        0.399,
+        0.699,
+        0.41
+      ]
     },
     "waste": {
-      "value": 345678,
+      "value": 517164.16,
       "unit": "公噸",
-      "source_page": 47,
-      "confidence": 0.88
+      "source_page": 65,
+      "confidence": 0.95,
+      "_compact_page": 24,
+      "bbox": [
+        0.649,
+        0.6,
+        0.73,
+        0.611
+      ]
     },
     "injury_rate": {
-      "value": 0.9,
+      "value": 0.08,
       "unit": "TRIR",
-      "source_page": 55,
-      "confidence": 0.92
+      "source_page": 89,
+      "confidence": 0.95,
+      "_compact_page": 24,
+      "bbox": [
+        0.779,
+        0.699,
+        0.807,
+        0.71
+      ]
     },
     "turnover": {
-      "value": 6.2,
+      "value": null,
       "unit": "%",
-      "source_page": 56,
-      "confidence": 0.95
+      "source_page": 81,
+      "confidence": 0.0,
+      "_compact_page": null,
+      "bbox": null
     },
     "female_ratio": {
-      "value": 18,
+      "value": null,
       "unit": "%",
-      "source_page": 58,
-      "confidence": 0.95
+      "source_page": 77,
+      "confidence": 0.0,
+      "_compact_page": null,
+      "bbox": null
     },
     "female_mgmt_ratio": {
-      "value": 12,
+      "value": null,
       "unit": "%",
-      "source_page": 58,
-      "confidence": 0.95
+      "source_page": 79,
+      "confidence": 0.0,
+      "_compact_page": null,
+      "bbox": null
     },
     "training_hours": {
-      "value": 55,
+      "value": null,
       "unit": "小時/人/年",
-      "source_page": 61,
-      "confidence": 0.90
+      "source_page": null,
+      "confidence": 0.0,
+      "_compact_page": null,
+      "bbox": null
     },
     "independent_director_ratio": {
-      "value": 50,
+      "value": 27.27,
       "unit": "%",
-      "source_page": 72,
-      "confidence": 0.98
+      "source_page": 13,
+      "confidence": 0.95,
+      "_compact_page": 13,
+      "bbox": null
     },
     "female_director_ratio": {
-      "value": 12,
+      "value": 9.09,
       "unit": "%",
-      "source_page": 72,
-      "confidence": 0.98
+      "source_page": 13,
+      "confidence": 0.95,
+      "_compact_page": 13,
+      "bbox": null
     },
     "has_sustainability_officer": {
-      "value": true,
+      "value": false,
       "unit": "布林",
-      "source_page": 18,
-      "confidence": 1.0
+      "source_page": 35,
+      "confidence": 0.95,
+      "_compact_page": 14,
+      "bbox": null
     },
     "assurance": {
       "value": true,
       "unit": "布林",
-      "source_page": 98,
-      "confidence": 1.0
+      "source_page": 27,
+      "confidence": 0.95,
+      "_compact_page": 27,
+      "bbox": null
     },
     "violations": {
-      "value": 1,
+      "value": 0,
       "unit": "次",
-      "source_page": 74,
-      "confidence": 0.95
+      "source_page": 49,
+      "confidence": 0.95,
+      "_compact_page": 8,
+      "bbox": [
+        0.899,
+        0.6,
+        0.913,
+        0.611
+      ]
     }
   },
-  "greenwash_claims": [
-    "中鋼承諾2050年達成碳中和，積極推動低碳轉型",
-    "持續投入綠色製程研發，朝淨零碳排目標邁進"
-  ]
+  "greenwash_claims": [],
+  "_meta": {
+    "pipeline_version": "v2-hybrid",
+    "total_pdf_pages": 83,
+    "compact_pdf_pages": 27,
+    "page_offset": 0,
+    "gri_page_map": {
+      "ghg_scope1": [
+        45
+      ],
+      "ghg_scope2": [
+        45
+      ],
+      "ghg_scope3": [
+        45
+      ],
+      "carbon_intensity": [
+        45
+      ],
+      "electricity": [
+        57
+      ],
+      "renewable_ratio": [
+        57,
+        58
+      ],
+      "water": [
+        61,
+        63
+      ],
+      "waste": [
+        65
+      ],
+      "injury_rate": [
+        89,
+        93
+      ],
+      "turnover": [
+        81
+      ],
+      "female_ratio": [
+        77
+      ],
+      "female_mgmt_ratio": [
+        79
+      ],
+      "has_sustainability_officer": [
+        35
+      ],
+      "violations": [
+        49,
+        93
+      ]
+    },
+    "indicators_found": 11
+  }
 }

@@ -6,113 +6,291 @@
   "report_title": "南山人壽2023年永續報告書",
   "indicators": {
     "ghg_scope1": {
-      "value": 12345,
+      "value": 2196.53,
       "unit": "公噸CO2e",
-      "source_page": 32,
-      "confidence": 0.88
+      "source_page": 50,
+      "confidence": 0.95,
+      "_compact_page": 7,
+      "bbox": [
+        0.409,
+        0.242,
+        0.491,
+        0.256
+      ]
     },
     "ghg_scope2": {
-      "value": 56789,
+      "value": 18740.407,
       "unit": "公噸CO2e",
-      "source_page": 32,
-      "confidence": 0.88
+      "source_page": 50,
+      "confidence": 0.95,
+      "_compact_page": 7,
+      "bbox": [
+        0.409,
+        0.302,
+        0.491,
+        0.316
+      ]
     },
     "ghg_scope3": {
-      "value": 234567,
+      "value": 14395000,
       "unit": "公噸CO2e",
-      "source_page": 33,
-      "confidence": 0.70
+      "source_page": 50,
+      "confidence": 0.95,
+      "_compact_page": 5,
+      "bbox": [
+        0.409,
+        0.199,
+        0.464,
+        0.213
+      ]
     },
     "carbon_intensity": {
-      "value": 8.5,
+      "value": 0.045,
       "unit": "公噸CO2e/百萬元",
-      "source_page": 34,
-      "confidence": 0.85
+      "source_page": 50,
+      "confidence": 0.95,
+      "_compact_page": 7,
+      "bbox": [
+        0.454,
+        0.701,
+        0.491,
+        0.715
+      ]
     },
     "electricity": {
-      "value": 234567890,
+      "value": 38058300,
       "unit": "kWh",
-      "source_page": 35,
-      "confidence": 0.90
+      "source_page": 53,
+      "confidence": 0.95,
+      "_compact_page": 10,
+      "bbox": [
+        0.799,
+        0.801,
+        0.862,
+        0.815
+      ]
     },
     "renewable_ratio": {
-      "value": 12,
-      "unit": "%",
-      "source_page": 36,
-      "confidence": 0.88
-    },
-    "water": {
-      "value": 567890,
-      "unit": "立方公尺",
-      "source_page": 38,
-      "confidence": 0.85
-    },
-    "waste": {
-      "value": 2345,
-      "unit": "公噸",
-      "source_page": 39,
-      "confidence": 0.85
-    },
-    "injury_rate": {
-      "value": 2.8,
-      "unit": "TRIR",
-      "source_page": 48,
-      "confidence": 0.80
-    },
-    "turnover": {
-      "value": 22.5,
+      "value": 1.091,
       "unit": "%",
       "source_page": 49,
-      "confidence": 0.92
+      "confidence": 0.95,
+      "_compact_page": 10,
+      "bbox": null
+    },
+    "water": {
+      "value": null,
+      "unit": "立方公尺",
+      "source_page": null,
+      "confidence": 0.0,
+      "_compact_page": null,
+      "bbox": null
+    },
+    "waste": {
+      "value": 269.3295,
+      "unit": "公噸",
+      "source_page": 2,
+      "confidence": 0.95,
+      "_compact_page": 2,
+      "bbox": [
+        0.862,
+        0.752,
+        0.925,
+        0.766
+      ]
+    },
+    "injury_rate": {
+      "value": 0.09,
+      "unit": "TRIR",
+      "source_page": 110,
+      "confidence": 0.95,
+      "_compact_page": 27,
+      "bbox": [
+        0.704,
+        0.349,
+        0.741,
+        0.363
+      ]
+    },
+    "turnover": {
+      "value": 10.4,
+      "unit": "%",
+      "source_page": 116,
+      "confidence": 0.95,
+      "_compact_page": 30,
+      "bbox": [
+        0.659,
+        0.693,
+        0.696,
+        0.707
+      ]
     },
     "female_ratio": {
-      "value": 45,
+      "value": 63.7,
       "unit": "%",
-      "source_page": 51,
-      "confidence": 0.95
+      "source_page": 75,
+      "confidence": 0.95,
+      "_compact_page": 23,
+      "bbox": [
+        0.399,
+        0.302,
+        0.436,
+        0.316
+      ]
     },
     "female_mgmt_ratio": {
-      "value": 18,
+      "value": 49.7,
       "unit": "%",
-      "source_page": 51,
-      "confidence": 0.95
+      "source_page": 75,
+      "confidence": 0.95,
+      "_compact_page": 25,
+      "bbox": [
+        0.399,
+        0.601,
+        0.436,
+        0.615
+      ]
     },
     "training_hours": {
-      "value": 14,
+      "value": 75.2,
       "unit": "小時/人/年",
-      "source_page": 54,
-      "confidence": 0.88
+      "source_page": 21,
+      "confidence": 0.95,
+      "_compact_page": 22,
+      "bbox": [
+        0.609,
+        0.821,
+        0.646,
+        0.835
+      ]
     },
     "independent_director_ratio": {
-      "value": 33,
+      "value": 35.71,
       "unit": "%",
-      "source_page": 65,
-      "confidence": 0.98
+      "source_page": 73,
+      "confidence": 0.95,
+      "_compact_page": 13,
+      "bbox": [
+        0.799,
+        0.502,
+        0.836,
+        0.516
+      ]
     },
     "female_director_ratio": {
-      "value": 11,
+      "value": 7.14,
       "unit": "%",
-      "source_page": 65,
-      "confidence": 0.98
+      "source_page": 75,
+      "confidence": 0.95,
+      "_compact_page": 15,
+      "bbox": [
+        0.299,
+        0.202,
+        0.326,
+        0.216
+      ]
     },
     "has_sustainability_officer": {
       "value": false,
       "unit": "布林",
-      "source_page": null,
-      "confidence": 0.95
+      "source_page": 22,
+      "confidence": 0.95,
+      "_compact_page": 15,
+      "bbox": null
     },
     "assurance": {
-      "value": false,
+      "value": true,
       "unit": "布林",
-      "source_page": null,
-      "confidence": 0.95
+      "source_page": 144,
+      "confidence": 0.95,
+      "_compact_page": 35,
+      "bbox": null
     },
     "violations": {
-      "value": 6,
+      "value": 52,
       "unit": "次",
-      "source_page": 67,
-      "confidence": 0.90
+      "source_page": 80,
+      "confidence": 0.95,
+      "_compact_page": 20,
+      "bbox": [
+        0.799,
+        0.852,
+        0.826,
+        0.866
+      ]
     }
   },
-  "greenwash_claims": []
+  "greenwash_claims": [],
+  "_meta": {
+    "pipeline_version": "v2-hybrid",
+    "total_pdf_pages": 149,
+    "compact_pdf_pages": 37,
+    "page_offset": 1,
+    "gri_page_map": {
+      "ghg_scope1": [
+        50
+      ],
+      "ghg_scope2": [
+        50
+      ],
+      "ghg_scope3": [
+        50,
+        51
+      ],
+      "carbon_intensity": [
+        50
+      ],
+      "electricity": [
+        53
+      ],
+      "renewable_ratio": [
+        49,
+        50,
+        53
+      ],
+      "injury_rate": [
+        110,
+        111
+      ],
+      "turnover": [
+        116
+      ],
+      "female_ratio": [
+        75,
+        105
+      ],
+      "female_mgmt_ratio": [
+        75,
+        105
+      ],
+      "training_hours": [
+        21,
+        22
+      ],
+      "independent_director_ratio": [
+        73,
+        74,
+        75,
+        76,
+        77
+      ],
+      "female_director_ratio": [
+        75,
+        105
+      ],
+      "has_sustainability_officer": [
+        22
+      ],
+      "assurance": [
+        144,
+        145,
+        146,
+        147
+      ],
+      "violations": [
+        80
+      ]
+    },
+    "indicators_found": 17
+  }
 }

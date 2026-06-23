@@ -50,7 +50,7 @@ events:
 normalization:
   ghg_scope1_max: 10000000     # 公噸CO2e（鋼鐵業最高水準）
   ghg_scope2_max: 1000000      # 公噸CO2e
-  ghg_scope3_max: 5000000      # 公噸CO2e
+  ghg_scope3_max: 15000000     # 公噸CO2e（電子業全供應鏈揭露易超 5M，以大型跨國製造業為基準）
   carbon_intensity_max: 500    # 公噸CO2e/百萬元營收
   electricity_max: 5000000000  # kWh
   renewable_ratio_max: 100     # %

@@ -6,6 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from database.models import SessionLocal
@@ -29,6 +30,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+_PDF_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "pdfs"))
+app.mount("/pdfs", StaticFiles(directory=_PDF_DIR), name="pdfs")
 
 
 def get_db():
@@ -199,6 +203,28 @@ def get_dashboard(db: Session = Depends(get_db)):
         "data": {
             "companies": comparison,
             "radar_data": radar_data,
+        },
+    }
+
+
+@app.get("/api/pdf/{company_name}")
+def get_pdf_url(company_name: str, db: Session = Depends(get_db)):
+    """回傳指定公司的 PDF 靜態 URL（供前端 PDF viewer 使用）"""
+    company = get_company_by_name(db, company_name)
+    if not company:
+        raise HTTPException(status_code=404, detail=f"找不到公司：{company_name}")
+
+    filename = f"{company_name}_{2023}.pdf"
+    pdf_path = os.path.join(_PDF_DIR, filename)
+    if not os.path.exists(pdf_path):
+        raise HTTPException(status_code=404, detail=f"PDF 檔案不存在：{filename}")
+
+    return {
+        "status": "success",
+        "data": {
+            "company_name": company_name,
+            "pdf_url": f"/pdfs/{filename}",
+            "filename": filename,
         },
     }
 

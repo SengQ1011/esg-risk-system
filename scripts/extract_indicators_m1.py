@@ -5,19 +5,26 @@ M1 指標抽取腳本 v2 — 混合模式（GRI AI 路由 + Gemini Files API）
   Step 1 [Python]       pdfplumber 全文抽取 → 定位 GRI 索引範圍 + 偵測頁碼偏移
   Step 2 [Gemini Text]  AI 解析 GRI 索引表 → 輸出結構化頁碼 JSON（含跨頁範圍）
   Step 3 [Python]       pypdf 切片 → 精簡 PDF（僅相關頁面 ±1 頁 buffer）
-  Step 4 [Gemini PDF]   Files API 上傳精簡 PDF → AI 視覺抽取指標值
+  Step 4 [Gemini PDF]   Files API 上傳精簡 PDF → AI 抽取指標值（無 bbox，穩定性高）
+  Step 5 [Gemini PDF]   Files API 上傳精簡 PDF → AI 定位已知值的 bbox 座標（輕量任務）
+
+  bbox 獨立於值抽取（Step 4/5 解耦）的原因：
+  合併 bbox 使 JSON schema 從 72 欄增至 90 欄，對弱模型造成認知超載，
+  導致大量指標被漏抽。Step 5 只需「找這個數字在哪」，任務單純，穩定性高。
 
 防重複 API 呼叫（Log 快取機制）：
-  - Step 2 / Step 4 的 Gemini 回應存至 data/logs/{company}_step{n}_cache.json
+  - Step 2 / Step 4 / Step 5 的 Gemini 回應存至 data/logs/{company}_step{n}_cache.json
   - 重跑時若快取存在，自動跳過 API 呼叫
   - --force  強制重跑所有 API 呼叫
-  - --step 2 只重跑 Step 2（清除 Step 2 快取後重新呼叫）
+  - --step 4 只重跑 Step 4（清除快取）
+  - --step 5 只重跑 Step 5（bbox 重定位，不重跑值抽取）
   - --company 台達電  只處理指定公司
 
 執行方式（在專案根目錄）：
   python scripts/extract_indicators_m1.py
   python scripts/extract_indicators_m1.py --force
   python scripts/extract_indicators_m1.py --company 中鋼 --step 4
+  python scripts/extract_indicators_m1.py --company 台達電 --step 5
 """
 
 import sys
@@ -49,6 +56,21 @@ for _d in [CACHE_DIR, LOG_DIR]:
     _d.mkdir(parents=True, exist_ok=True)
 
 client = genai.Client()
+
+# ── Gemini generate_content with retry（503 transient overload 用）──
+def _generate_with_retry(model: str, contents, config, logger: logging.Logger, tag: str):
+    """最多重試 3 次（30s / 60s / 120s），專門應對 503 高峰期。"""
+    delays = [30, 60, 120]
+    for attempt, wait in enumerate(delays, start=1):
+        try:
+            return client.models.generate_content(model=model, contents=contents, config=config)
+        except Exception as e:
+            if "503" in str(e) and attempt <= len(delays):
+                logger.warning(f"[{tag}] 503 UNAVAILABLE，第 {attempt} 次重試（等待 {wait}s）...")
+                time.sleep(wait)
+            else:
+                raise
+    return client.models.generate_content(model=model, contents=contents, config=config)
 
 # ── Demo 公司清單 ─────────────────────────────────────────────────
 COMPANIES = [
@@ -252,6 +274,13 @@ _GRI_PARSER_SYSTEM = """你是一位 ESG 文件分析師，正在解析企業永
   has_sustainability_officer → 永續長 / ESG 委員會 / 永續推動委員會
   assurance               → GRI 2-5    第三方確信 / 保證聲明
   violations              → GRI 2-27   重大違規 / 裁罰 / 罰鍰次數
+
+特別注意（治理指標常見位置，GRI 索引未明確列出時也請嘗試推估）：
+- independent_director_ratio：「董事會組成」「公司治理」章節，通常含獨立董事人數或比例
+- female_director_ratio：同上章節，含女性董事人數或比例
+- has_sustainability_officer：報告書前段或「治理架構」章節，提及永續長、ESG 長等職稱
+- violations：「法規遵循」「GRI 2-27」「重大裁罰」「罰鍰」相關章節
+  若明確找不到，填 null；不要猜測。
 """
 
 def call_step2_gri_parser(
@@ -277,14 +306,16 @@ def call_step2_gri_parser(
     logger.info(f"[Step 2] 呼叫 Gemini（預估 input ~{est_tokens:,} tokens）...")
     logger.debug(f"[Step 2] 送出文字前 300 字：\n{index_text[:300]}")
 
-    response = client.models.generate_content(
-        model="gemini-2.0-flash",
+    response = _generate_with_retry(
+        model="gemini-2.5-flash",
         contents=f"以下是 GRI 索引頁面文字，請解析：\n\n{index_text}",
         config=types.GenerateContentConfig(
             system_instruction=_GRI_PARSER_SYSTEM,
             response_mime_type="application/json",
             temperature=0.0,
         ),
+        logger=logger,
+        tag="Step 2",
     )
 
     result = json.loads(response.text)
@@ -365,7 +396,16 @@ def slice_pdf(
 
 _EXTRACTOR_SYSTEM = """你是一位精確的 ESG 資料分析師，從企業永續報告書 PDF 中抽取量化指標。
 
-規則：
+重要數值語義（必讀，避免常見錯誤）：
+- training_hours：員工「每人平均」訓練時數（小時/人/年），典型值 10–60。
+  ⚠ 不要填組織總計時數（百萬小時量級）；請找「人均」或「每人」欄位。
+- violations：GRI 2-27 主管機關重大裁罰【件數】，典型 0–30 件。
+  不是罰款金額，不是內部稽查件數；若有多年取最新一年。
+- renewable_ratio：再生能源佔總用電量的 %，直接填數字（76.0），不含 % 符號。
+- has_sustainability_officer：公司是否設有「永續長」「ESG 長」或對等職位（true/false）。
+- assurance：報告書是否有「第三方確信」「保證聲明」（true/false）。
+
+一般規則：
 - value：找到的數值（純數字，去除千分位逗號）；布林指標填 true/false；找不到填 null
 - source_page：找到資料的印刷頁碼（數字）；不確定填 null
 - confidence：0.95 = 清楚確定｜0.7 = 有點推測｜0.0 = 找不到
@@ -392,6 +432,42 @@ _EXTRACTOR_SYSTEM = """你是一位精確的 ESG 資料分析師，從企業永�
   "has_sustainability_officer": {"value": null, "unit": "布林",            "source_page": null, "confidence": 0.0},
   "assurance":                  {"value": null, "unit": "布林",            "source_page": null, "confidence": 0.0},
   "violations":                 {"value": null, "unit": "次",              "source_page": null, "confidence": 0.0}
+}
+"""
+
+# ── Step 5 Prompt：bbox 定位（獨立於值抽取）────────────────────────
+_BBOX_SYSTEM = """你是一位精確的文件標注分析師，負責定位數值在 PDF 頁面上的位置。
+
+任務：在 compact PDF 中找到使用者提供的「已知 ESG 指標值」，並回傳該數值的 bbox 座標。
+
+bbox 格式：[x1, y1, x2, y2]，皆為 0.0~1.0 的比例座標（原點左上角，x 向右，y 向下）。
+
+規則：
+- compact_page：該數值在這份 compact PDF 中的頁碼（1-indexed）；找不到填 null
+- bbox：框住「數值本身」的最小矩形（不需包含標籤欄）；找不到填 null
+- 布林指標（has_sustainability_officer / assurance）通常無法精確定位，直接填 null
+- 座標必須在 [0.0, 1.0] 範圍內；請勿回傳 pt 單位的像素值
+
+回傳嚴格 JSON（不含說明）：
+{
+  "ghg_scope1":                 {"compact_page": null, "bbox": null},
+  "ghg_scope2":                 {"compact_page": null, "bbox": null},
+  "ghg_scope3":                 {"compact_page": null, "bbox": null},
+  "carbon_intensity":           {"compact_page": null, "bbox": null},
+  "electricity":                {"compact_page": null, "bbox": null},
+  "renewable_ratio":            {"compact_page": null, "bbox": null},
+  "water":                      {"compact_page": null, "bbox": null},
+  "waste":                      {"compact_page": null, "bbox": null},
+  "injury_rate":                {"compact_page": null, "bbox": null},
+  "turnover":                   {"compact_page": null, "bbox": null},
+  "female_ratio":               {"compact_page": null, "bbox": null},
+  "female_mgmt_ratio":          {"compact_page": null, "bbox": null},
+  "training_hours":             {"compact_page": null, "bbox": null},
+  "independent_director_ratio": {"compact_page": null, "bbox": null},
+  "female_director_ratio":      {"compact_page": null, "bbox": null},
+  "has_sustainability_officer": {"compact_page": null, "bbox": null},
+  "assurance":                  {"compact_page": null, "bbox": null},
+  "violations":                 {"compact_page": null, "bbox": null}
 }
 """
 
@@ -426,14 +502,16 @@ def call_step4_extractor(
         logger.info(f"[Step 4] 上傳成功，URI = {uploaded.uri}")
 
         try:
-            response = client.models.generate_content(
-                model="gemini-2.0-flash",
+            response = _generate_with_retry(
+                model="gemini-2.5-flash",
                 contents=[uploaded, prompt_text],
                 config=types.GenerateContentConfig(
                     system_instruction=_EXTRACTOR_SYSTEM,
                     response_mime_type="application/json",
                     temperature=0.0,
                 ),
+                logger=logger,
+                tag="Step 4 Files",
             )
             result = json.loads(response.text)
             logger.info("[Step 4] Files API 抽取成功")
@@ -453,8 +531,8 @@ def call_step4_extractor(
             pdf_bytes = f.read()
 
         logger.info(f"[Step 4] inline_data 模式，PDF bytes = {len(pdf_bytes):,}")
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
+        response = _generate_with_retry(
+            model="gemini-2.5-flash",
             contents=[
                 types.Part(
                     inline_data=types.Blob(mime_type="application/pdf", data=pdf_bytes)
@@ -466,6 +544,8 @@ def call_step4_extractor(
                 response_mime_type="application/json",
                 temperature=0.0,
             ),
+            logger=logger,
+            tag="Step 4 inline",
         )
         result = json.loads(response.text)
         logger.info("[Step 4] inline_data 抽取成功")
@@ -480,6 +560,113 @@ def call_step4_extractor(
 
     save_step_cache(company, 4, result)
     logger.info(f"[Step 4] 快取已存：{_cache_path(company, 4).name}")
+    return result
+
+# ═══════════════════════════════════════════════════════════════════
+# Step 5: Gemini 定位已知數值的 bbox（獨立於值抽取，認知負擔低）
+# ═══════════════════════════════════════════════════════════════════
+
+def call_step5_bbox_extractor(
+    compact_pdf_path: Path,
+    indicators: dict,
+    company: str,
+    logger: logging.Logger,
+    force_step: int | None,
+) -> dict:
+    """
+    Step 5：對 Step 4 已確認的指標值，找出 bbox 座標。
+    任務比 Step 4 單純（只需定位數字位置），模型穩定性更高。
+    有快取則跳過；--step 5 或 --force 可重跑。
+    """
+    if force_step != 5:
+        cached = load_step_cache(company, 5)
+        if cached:
+            logger.info("[Step 5] ✓ 使用快取，跳過 Gemini API（--force 或 --step 5 可重跑）")
+            return cached
+
+    # 只傳入有值的指標（布林指標不需要 bbox）
+    _BOOL_KEYS = {"has_sustainability_officer", "assurance"}
+    known_values = {
+        k: {"value": v.get("value"), "unit": v.get("unit")}
+        for k, v in indicators.items()
+        if isinstance(v, dict) and v.get("value") is not None and k not in _BOOL_KEYS
+    }
+
+    if not known_values:
+        logger.info("[Step 5] 無可定位的指標（step 4 全為 null），跳過 bbox 抽取")
+        return {}
+
+    size_kb = compact_pdf_path.stat().st_size // 1024
+    logger.info(f"[Step 5] 定位 {len(known_values)} 個指標的 bbox，PDF {size_kb} KB...")
+
+    prompt_text = (
+        f"公司：{company}\n\n"
+        f"以下是已從本報告書確認的 ESG 指標值，請找出每個數值在 compact PDF 中的位置：\n\n"
+        f"{json.dumps(known_values, ensure_ascii=False, indent=2)}\n\n"
+        "請回傳每個指標的 compact PDF 頁碼（compact_page）和 bbox 座標（0.0~1.0 比例）。"
+    )
+
+    result = None
+
+    try:
+        logger.info("[Step 5] 嘗試 Files API 上傳...")
+        uploaded = client.files.upload(file=pathlib.Path(compact_pdf_path))
+        logger.info(f"[Step 5] 上傳成功，URI = {uploaded.uri}")
+
+        try:
+            response = _generate_with_retry(
+                model="gemini-2.5-flash",
+                contents=[uploaded, prompt_text],
+                config=types.GenerateContentConfig(
+                    system_instruction=_BBOX_SYSTEM,
+                    response_mime_type="application/json",
+                    temperature=0.0,
+                ),
+                logger=logger,
+                tag="Step 5 Files",
+            )
+            result = json.loads(response.text)
+            logger.info("[Step 5] Files API bbox 定位成功")
+        finally:
+            try:
+                client.files.delete(name=uploaded.name)
+                logger.debug(f"[Step 5] Files API 檔案已刪除：{uploaded.name}")
+            except Exception as _e:
+                logger.warning(f"[Step 5] Files API 刪除失敗（可忽略）：{_e}")
+
+    except Exception as files_err:
+        logger.warning(f"[Step 5] Files API 失敗：{files_err}")
+        logger.info("[Step 5] 改用 inline_data fallback...")
+
+        with open(compact_pdf_path, "rb") as f:
+            pdf_bytes = f.read()
+
+        response = _generate_with_retry(
+            model="gemini-2.5-flash",
+            contents=[
+                types.Part(inline_data=types.Blob(mime_type="application/pdf", data=pdf_bytes)),
+                types.Part(text=prompt_text),
+            ],
+            config=types.GenerateContentConfig(
+                system_instruction=_BBOX_SYSTEM,
+                response_mime_type="application/json",
+                temperature=0.0,
+            ),
+            logger=logger,
+            tag="Step 5 inline",
+        )
+        result = json.loads(response.text)
+        logger.info("[Step 5] inline_data bbox 定位成功")
+
+    bbox_found = sum(
+        1 for v in result.values()
+        if isinstance(v, dict) and v.get("bbox") is not None
+    )
+    logger.info(f"[Step 5] bbox 定位：{bbox_found}/{len(known_values)} 個有座標")
+    logger.debug(f"[Step 5] 完整回應：\n{json.dumps(result, ensure_ascii=False, indent=2)}")
+
+    save_step_cache(company, 5, result)
+    logger.info(f"[Step 5] 快取已存：{_cache_path(company, 5).name}")
     return result
 
 # ═══════════════════════════════════════════════════════════════════
@@ -501,7 +688,7 @@ def process_company(info: dict, force_all: bool, force_step: int | None) -> bool
 
     # 如果 --force，清除所有快取
     if force_all:
-        for step in (2, 4):
+        for step in (2, 4, 5):
             clear_step_cache(company, step)
         logger.info("已清除所有步驟快取（force 模式）")
     elif force_step:
@@ -525,6 +712,15 @@ def process_company(info: dict, force_all: bool, force_step: int | None) -> bool
         page_offset      = gri_result.get("page_offset", offset_guess)
         indicator_pages  = gri_result.get("indicators", {})
         found_mappings   = {k: v for k, v in indicator_pages.items() if v}
+
+        # 合理性檢查：Gemini 的 page_offset 若和 Python 偵測值差距 > 15，改用 Python 值
+        if abs(page_offset - offset_guess) > 15:
+            logger.warning(
+                f"Gemini page_offset={page_offset} 與 Python 偵測值 {offset_guess} 差距過大，"
+                f"改用 Python 偵測值"
+            )
+            page_offset = offset_guess
+
         logger.info(f"使用 page_offset = {page_offset}（共 {len(found_mappings)}/18 個指標有頁碼）")
 
         # ── Step 3 ─────────────────────────────────────────────
@@ -537,13 +733,63 @@ def process_company(info: dict, force_all: bool, force_step: int | None) -> bool
             logger.warning("Step 2 無法取得任何頁碼，fallback 使用前 60 頁")
             physical_pages = list(range(min(60, total_pdf_pages)))
 
-        compact_pdf = LOG_DIR / f"{company}_compact.pdf"
+        compact_pdf = LOG_DIR / f"compact_{info['ticker']}.pdf"
         page_count  = slice_pdf(pdf_path, physical_pages, compact_pdf, logger)
 
         # ── Step 4 ─────────────────────────────────────────────
         logger.info("── Step 4: Gemini 讀精簡 PDF 抽取指標 ──────────")
         time.sleep(4)
         indicators = call_step4_extractor(compact_pdf, company, logger, force_step)
+
+        # ── Step 4 後處理：修正 source_page（保留 compact page 供 Step 5 使用）──
+        for _key, _ind in indicators.items():
+            if not isinstance(_ind, dict):
+                continue
+            # 保存 Gemini 給的 compact PDF 頁碼（Step 5 bbox 定位用）
+            _ind["_compact_page"] = _ind.get("source_page")
+            # 改用 GRI 頁碼映射（原始報告印刷頁碼）
+            if _key in found_mappings and found_mappings[_key]:
+                _ind["source_page"] = found_mappings[_key][0]
+                logger.debug(f"[Post4] {_key} source_page：{_ind['_compact_page']} → {_ind['source_page']}")
+
+        # ── Step 5: 定位已知數值的 bbox ───────────────────────────
+        logger.info("── Step 5: Gemini 定位指標 bbox 座標 ────────────")
+        time.sleep(4)
+        bbox_result = call_step5_bbox_extractor(compact_pdf, indicators, company, logger, force_step)
+
+        # ── Step 5 後處理：bbox 正規化 + 合併進 indicators ─────────
+        compact_page_dims: dict[int, tuple[float, float]] = {}
+        try:
+            with pdfplumber.open(compact_pdf) as _cpdf:
+                for _i, _pg in enumerate(_cpdf.pages):
+                    compact_page_dims[_i + 1] = (_pg.width, _pg.height)
+        except Exception as _e:
+            logger.warning(f"無法讀 compact PDF 頁面尺寸，bbox 正規化跳過：{_e}")
+
+        for _key, _bbox_info in bbox_result.items():
+            if not isinstance(_bbox_info, dict):
+                continue
+            if _key not in indicators or not isinstance(indicators[_key], dict):
+                continue
+
+            _compact_page = _bbox_info.get("compact_page")
+            _bbox = _bbox_info.get("bbox")
+
+            # bbox 正規化：若任何座標 > 1.0，視為 pt 座標，除以頁面尺寸
+            if _bbox and isinstance(_bbox, list) and len(_bbox) == 4:
+                if any(isinstance(v, (int, float)) and v > 1.0 for v in _bbox if v is not None):
+                    _w, _h = compact_page_dims.get(_compact_page or 1, (595.0, 842.0))
+                    _bbox = [
+                        round(max(0.0, min(1.0, _bbox[0] / _w)), 4),
+                        round(max(0.0, min(1.0, _bbox[1] / _h)), 4),
+                        round(max(0.0, min(1.0, _bbox[2] / _w)), 4),
+                        round(max(0.0, min(1.0, _bbox[3] / _h)), 4),
+                    ]
+                    logger.debug(f"[Post5] {_key} bbox 正規化 → {_bbox}")
+
+            indicators[_key]["bbox"] = _bbox
+            if _compact_page is not None:
+                indicators[_key]["_compact_page"] = _compact_page
 
         # ── 儲存快取 ──────────────────────────────────────────
         found_count = sum(
@@ -596,7 +842,7 @@ def main():
     )
     parser.add_argument("--force",   action="store_true", help="清除所有快取，強制重跑所有 API 呼叫")
     parser.add_argument("--company", type=str, help="只處理指定公司（例：台達電）")
-    parser.add_argument("--step",    type=int, choices=[2, 4], help="只重跑指定步驟（2=GRI解析 / 4=指標抽取）")
+    parser.add_argument("--step",    type=int, choices=[2, 4, 5], help="只重跑指定步驟（2=GRI解析 / 4=指標抽取 / 5=bbox定位）")
     args = parser.parse_args()
 
     companies = COMPANIES

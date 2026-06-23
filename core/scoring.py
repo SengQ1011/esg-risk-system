@@ -66,38 +66,55 @@ def _score_dimension(
 ) -> tuple[float, list[dict]]:
     """
     回傳 (dimension_score_0_to_100, breakdown_list)
-    缺漏指標以 0 填補（保守估計）。
+
+    Null 處理：Weight Redistribution — 缺漏指標不計入分母，
+    讓分數反映「已揭露資料」而非懲罰未揭露。
+    UI 應顯示「基於 N/M 個指標」讓用戶知道缺漏情形。
     """
-    total_weight = 0.0
+    available_weight = 0.0
     weighted_sum = 0.0
     breakdown = []
 
     for key, weight in weights.items():
-        raw_value = indicators.get(key)
-        if isinstance(raw_value, dict):
-            raw_value = raw_value.get("value")
+        raw_indicator = indicators.get(key)
+        if isinstance(raw_indicator, dict):
+            raw_value   = raw_indicator.get("value")
+            source_page = raw_indicator.get("source_page")
+            bbox        = raw_indicator.get("bbox")
+            unit        = raw_indicator.get("unit")
+            confidence  = raw_indicator.get("confidence", 1.0)
+        else:
+            raw_value   = raw_indicator
+            source_page = None
+            bbox        = None
+            unit        = None
+            confidence  = 1.0 if raw_indicator is not None else 0.0
 
         normalized = _normalize(key, raw_value, norm_cfg)
-        if normalized is None:
-            normalized = 0.0
-            missing = True
-        else:
-            missing = False
+        missing = normalized is None
 
-        contribution = normalized * weight
-        weighted_sum += contribution
-        total_weight += weight
+        if not missing:
+            contribution = normalized * weight
+            weighted_sum += contribution
+            available_weight += weight
+        else:
+            normalized = None
+            contribution = 0.0
 
         breakdown.append({
             "key": key,
             "raw_value": raw_value,
-            "normalized": round(normalized, 4),
+            "unit": unit,
+            "source_page": source_page,
+            "bbox": bbox,
+            "confidence": confidence,
+            "normalized": round(normalized, 4) if normalized is not None else None,
             "weight": weight,
             "contribution": round(contribution, 4),
             "missing": missing,
         })
 
-    score = (weighted_sum / total_weight) * 100 if total_weight > 0 else 0.0
+    score = (weighted_sum / available_weight) * 100 if available_weight > 0 else 0.0
     return round(score, 2), breakdown
 
 
