@@ -1,49 +1,28 @@
 # ESG 系統待完成項目
 
-> Demo 前必須完成的以 🔴 標示；選做以 🟡 標示。
-
 ---
 
-## ✅ 已完成
+## ✅ 已完成（main branch）
 
 ### M1 — 指標抽取
 - 三家公司 M1 真實抽取完成（gemini-2.5-flash）
 - Step 4 schema 新增 `source_text`（PDF 原始字串，供 PyMuPDF 精確搜尋）
-- Step 3 `_meta` 新增 `compact_page_map`（compact 頁碼 → 原始物理頁，修正 2-up 混淆）
-- 修復 A3 2-up PDF（中鋼）的邏輯頁/物理頁對應：`core/page_map.py`
+- Step 3 `_meta` 新增 `compact_page_map`（修正 A3 2-up 混淆）
+- `core/page_map.py`：A3 2-up PDF 邏輯頁 ↔ 物理頁轉換
 
 ### M4 — 評分引擎
-- Weight Redistribution（缺漏指標從分母剔除，不以 0 懲罰）
-- breakdown 新增 `source_page`、`unit`、`confidence`、`pdf_page`、`bbox`
+- Weight Redistribution（缺漏指標從分母剔除）
+- breakdown 含 `source_page`、`unit`、`confidence`、`pdf_page`、`bbox`
 
-### M5-PDF — 指標 Highlight 視覺化 ✅ 完成
-- `scripts/fix_bbox_with_pymupdf.py`：PyMuPDF text search 取代 AI 猜測 bbox
-  - 優先 `source_text`（AI 回傳原始字串）→ 退回格式候選搜尋
-  - 優先 `_compact_page + compact_page_map`（Gemini 實際看到的頁）→ 退回 GRI source_page
-  - 過濾頁首/尾邊距命中（y < 5% 或 y > 93%）
-  - 多命中時按 2023 年份關鍵字評分選最佳
-- `core/page_map.py`：A3 2-up PDF 邏輯頁 ↔ 物理頁轉換
-- `api/main.py`：`/api/pdf/{company}` FileResponse（繞過中文路徑 URL 編碼問題）
-- `api/main.py`：`page_offset` 加入 company detail response
-- `frontend-next/src/components/pdf-viewer-modal.tsx`
-  - react-pdf + CMap（支援中文字體）
-  - 自動縮放至 scroll area 寬度（消除 A3 右側空白）
-  - bbox overlay（黃色底色，無邊框）
-  - zoom 60%~200%、翻頁、跳回指標頁按鈕
-  - 頁面渲染後自動 scrollLeft 置中 highlight
-- `frontend-next/src/components/breakdown-table-client.tsx`
-  - 點擊指標 → 開 PDF viewer
-  - `raw_value === false`（布林否）→ 不可點擊
-  - 優先用 `pdf_page`，fallback `source_page + pageOffset`
-
-### M5-前端 — Next.js 評分卡 ✅ 完成
-- `/`：三家公司列表（總分 + 等級燈號 + E/S/G 概覽）
-- `/company/[name]`：完整評分卡（雷達圖、長條圖、breakdown 表格、警示清單、決策燈號）
-- `/compare`：三家並排比較雷達圖
+### M5 — 前端 + PDF Viewer
+- 三頁面（列表 / 評分卡 / 比較）採用新 UI 設計（朋友整合版）
+- PDF viewer：react-pdf + CMap + bbox highlight + 自動 scroll
+- `fix_bbox_with_pymupdf.py`：PyMuPDF text search 精確座標
+- `indicator-details-client.tsx`：Accordion 展開指標表 + PDF viewer 整合
 
 ---
 
-## 目前分數（最終）
+## 目前分數（main）
 
 | 公司 | E | S | G | 總分 | 等級 |
 |------|---|---|---|------|------|
@@ -53,31 +32,80 @@
 
 ---
 
-## 🟡 待改善（選做）
+## 🔵 進行中：feat/general-company（前端通用化）
 
-### M2：新聞爬取
-目前手工快取已足夠 demo，三家公司正負面事件對比明顯。
+**目標**：讓系統支援任意台灣上市公司，不限三家 demo 公司。
 
-### source_text prompt 優化
-部分指標 Gemini 回傳整句話而非純數字（`electricity` 的 source_text 太長導致搜尋失敗）。
-改法：Step 4 prompt 強調 source_text 只填「數值的原始字串」，不含標籤或單位描述。
+### 任務清單
+- [ ] 首頁改為搜尋頁（公司名稱 / 股票代號輸入框）
+- [ ] 首頁下方「已分析的公司」區塊（從 /api/companies 讀取，方便 demo 直接點擊）
+- [ ] 上傳 PDF 功能（拖曳上傳，POST /api/company/analyze）
+- [ ] 進度頁面 `/job/[jobId]`（WebSocket 連線，顯示 M1 各 step）
+- [ ] 分析完成後彈通知 + 自動跳轉評分卡
+- [ ] 公司不在 DB 時顯示「開始分析」入口
+- [ ] **mock API**：前端先用假 response 開發，等後端完成再串
 
-### M2 重跑後標準流程
-```bash
-python -X utf8 scripts/fix_bbox_with_pymupdf.py
-python -X utf8 scripts/preprocess_cache.py
+### Mock API 格式（前端 agent 使用）
+
+`POST /api/company/analyze` response:
+```json
+{
+  "status": "success",
+  "data": { "job_id": "mock-abc123", "company_name": "鴻海" }
+}
+```
+
+WebSocket `ws://localhost:8000/ws/job/{job_id}` 推送格式:
+```json
+{"step": "搜尋 ESG 報告書", "progress": 10, "done": false}
+{"step": "下載 PDF", "progress": 25, "done": false}
+{"step": "GRI 索引解析", "progress": 45, "done": false}
+{"step": "Gemini 指標抽取", "progress": 70, "done": false}
+{"step": "計算 E/S/G 分數", "progress": 90, "done": false}
+{"step": "完成", "progress": 100, "done": true, "company_name": "鴻海"}
 ```
 
 ---
 
-## Demo 當天執行順序
+## 🔵 進行中：feat/real-m2-m3（後端 M2/M3 + 通用分析）
+
+**目標**：取代假資料，支援任意公司即時分析。
+
+### 任務清單
+
+#### Job 系統
+- [ ] `database/models.py` 新增 `Jobs` 資料表（job_id, company_name, status, step, progress, error, created_at）
+- [ ] `database/crud.py` 新增 Job CRUD
+- [ ] `POST /api/company/analyze` endpoint（接公司名稱 or 上傳 PDF）
+- [ ] `GET /api/job/{job_id}` endpoint（查詢 job 狀態）
+- [ ] `WS /ws/job/{job_id}` WebSocket（即時推送進度）
+
+#### M1 通用化
+- [ ] Gemini Search 搜尋 ESG 報告 PDF URL（台灣上市公司）
+- [ ] 下載 PDF → `data/pdfs/{ticker}_{year}.pdf`
+- [ ] 背景執行現有 M1 pipeline（`asyncio.run_in_executor`）
+- [ ] AI 自動識別 PDF 是哪家公司（from filename or content）
+- [ ] 執行完後跑 `fix_bbox_with_pymupdf.py` + `preprocess_cache.py`
+
+#### M2 — 新聞評分（取代假資料）
+- [ ] `scripts/fetch_news_m2.py`：Google News RSS 抓取
+  - URL: `https://news.google.com/rss/search?q={公司名稱}+ESG&hl=zh-TW&gl=TW`
+  - BeautifulSoup 解析，Gemini 分類 severity
+  - ERS = Σ(intensity × e^(-λ·days))，λ=0.005
+- [ ] 快取到期邏輯：`news_updated_at` 超過 1 個月 → 觸發重抓
+
+#### M3 — 漂綠偵測（取代假 flag）
+- [ ] `scripts/detect_greenwash_m3.py`：
+  - 重用 M1 compact PDF（已過濾至相關頁，約 20-55 頁）
+  - Gemini 擷取承諾聲明（減碳目標、淨零承諾、再生能源宣稱）
+  - 對照 M1 量化指標（ghg_scope1 年增？assurance=false？）
+  - 三種矛盾模式：趨勢矛盾、缺乏第三方確信、範疇選擇性揭露
+
+---
+
+## Demo 當天執行（main branch）
 
 ```bash
-# 後端
 uvicorn api.main:app --port 8000
-
-# 前端
-cd frontend-next && npm run dev   # http://localhost:3000
+cd frontend-next && npm run dev
 ```
-
-> 所有 LLM 呼叫已離線跑完，demo 當天只讀快取，不需 Gemini API。
