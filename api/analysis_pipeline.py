@@ -77,7 +77,7 @@ def search_esg_report_url(company_name: str, ticker: str, year: int) -> str | No
     client = genai.Client()
     try:
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             contents=(
                 f"請找出{company_name}（股票代號 {ticker}）{year} 年永續報告書的 PDF 直連下載網址，"
                 "只回傳 URL，不要其他說明文字。"
@@ -131,7 +131,7 @@ def identify_company_from_pdf(pdf_path: Path) -> dict | None:
     try:
         uploaded = client.files.upload(file=pathlib.Path(pdf_path))
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             contents=[
                 uploaded,
                 "這是一份台灣上市公司的永續報告書，請從封面和前幾頁識別：公司名稱（繁體中文）和股票代號（4位數字）。"

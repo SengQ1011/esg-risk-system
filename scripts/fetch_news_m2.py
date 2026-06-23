@@ -198,7 +198,7 @@ def _classify_articles(company_name: str, articles: list[dict]) -> list[dict]:
     try:
         client = _get_client()
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=_NEWS_CLASSIFIER_SYSTEM,

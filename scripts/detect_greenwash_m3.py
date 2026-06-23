@@ -188,7 +188,7 @@ def detect_greenwash(
             try:
                 uploaded = client.files.upload(file=pathlib.Path(compact_pdf))
                 response = client.models.generate_content(
-                    model="gemini-2.0-flash",
+                    model="gemini-2.5-flash",
                     contents=[uploaded, prompt],
                     config=types.GenerateContentConfig(
                         system_instruction=_GREENWASH_SYSTEM,
@@ -205,7 +205,7 @@ def detect_greenwash(
         else:
             # fallback：只用量化指標進行純文字分析
             response = client.models.generate_content(
-                model="gemini-2.0-flash",
+                model="gemini-2.5-flash",
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     system_instruction=_GREENWASH_SYSTEM,
