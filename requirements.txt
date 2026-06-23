@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+streamlit
+sqlalchemy
+google-genai
+python-dotenv
+pandas
+requests
+beautifulsoup4
+pydantic
