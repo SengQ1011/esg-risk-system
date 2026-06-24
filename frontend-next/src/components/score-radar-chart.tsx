@@ -4,6 +4,7 @@ import {
   RadarChart,
   PolarGrid,
   PolarAngleAxis,
+  PolarRadiusAxis,
   Radar,
   ResponsiveContainer,
   Tooltip,
@@ -35,6 +36,7 @@ export function ScoreRadarChart({ eScore, sScore, gScore }: ScoreRadarChartProps
           dataKey="subject"
           tick={{ fontSize: 13, fontWeight: 500 }}
         />
+        <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
         <Tooltip formatter={(v) => [`${Number(v).toFixed(1)}`, "分數"]} />
         <Radar
           dataKey="score"

@@ -1,6 +1,6 @@
 "use client"
 
-import { PolarAngleAxis, PolarGrid, Radar, RadarChart } from "recharts"
+import { PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart } from "recharts"
 import { AlertTriangle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -51,6 +51,7 @@ export function EsgRadarChartClient({
               dataKey="dimension"
               tick={{ fontSize: 13, fill: "var(--muted-foreground)" }}
             />
+            <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
             <Radar
               dataKey="score"
               fill="var(--color-score)"

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/navbar";
+import { FloatingJobPip } from "@/components/floating-job-pip";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,6 +24,7 @@ export default function RootLayout({
       <body className="min-h-full bg-gray-50">
         <Navbar />
         <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+        <FloatingJobPip />
       </body>
     </html>
   );

@@ -95,6 +95,53 @@ GRI_INDEX_PATTERNS = [
     r"GRI\s*\d{3}",   # e.g. "GRI 305" appearing densely
 ]
 
+# ── 多層 Fallback 設定 ─────────────────────────────────────────────
+FALLBACK_THRESHOLD = 5   # Step 2 找到頁碼 < 此值時啟動 fallback
+
+# Tier A：GRI 準則代號 → 各指標（用於從 GRI 索引文字提取章節編號）
+INDICATOR_GRI_CODES: dict[str, list[str]] = {
+    "ghg_scope1":               ["305-1"],
+    "ghg_scope2":               ["305-2"],
+    "ghg_scope3":               ["305-3"],
+    "carbon_intensity":         ["305-4"],
+    "electricity":              ["302-1"],
+    "renewable_ratio":          ["302-1", "302-4"],
+    "water":                    ["303-3", "303-5"],
+    "waste":                    ["306-3"],
+    "injury_rate":              ["403-9", "403-5"],
+    "turnover":                 ["401-1"],
+    "female_ratio":             ["405-1"],
+    "female_mgmt_ratio":        ["405-1"],
+    "training_hours":           ["404-1"],
+    "independent_director_ratio": ["2-9"],
+    "female_director_ratio":    ["405-1"],
+    "has_sustainability_officer": ["2-12", "2-13"],
+    "assurance":                ["2-5"],
+    "violations":               ["2-27"],
+}
+
+# Tier B：各指標的中文關鍵字（用於全文搜尋）
+INDICATOR_KEYWORDS: dict[str, list[str]] = {
+    "ghg_scope1":               ["範疇一", "Scope 1", "直接（範疇一）", "直接排放"],
+    "ghg_scope2":               ["範疇二", "Scope 2", "能源間接（範疇二）", "能源間接排放"],
+    "ghg_scope3":               ["範疇三", "Scope 3", "其它間接（範疇三）", "其他間接排放"],
+    "carbon_intensity":         ["碳排放強度", "溫室氣體強度", "排放強度", "碳強度"],
+    "electricity":              ["用電量", "電力消耗", "電力使用量", "能源消耗量"],
+    "renewable_ratio":          ["再生能源占比", "可再生能源占比", "再生能源使用率", "綠電占比"],
+    "water":                    ["取水量", "耗水量", "用水量"],
+    "waste":                    ["廢棄物總量", "廢棄物產生量", "廢棄物量"],
+    "injury_rate":              ["職災率", "TRIR", "失能傷害頻率", "職業傷害率"],
+    "turnover":                 ["離職率", "員工流動率", "員工離職率"],
+    "female_ratio":             ["女性員工比例", "女性員工占比", "女性員工"],
+    "female_mgmt_ratio":        ["女性主管比例", "女性管理職", "女性經理"],
+    "training_hours":           ["平均訓練時數", "每人平均訓練", "人均訓練"],
+    "independent_director_ratio": ["獨立董事比例", "獨立董事占比", "獨立董事"],
+    "female_director_ratio":    ["女性董事比例", "女性董事", "女董事"],
+    "has_sustainability_officer": ["永續長", "ESG長", "永續委員會", "永續推動委員會"],
+    "assurance":                ["第三方確信", "保證聲明", "獨立確信", "鑑證聲明"],
+    "violations":               ["重大裁罰", "重大違規", "違規裁罰", "主管機關裁罰"],
+}
+
 # ═══════════════════════════════════════════════════════════════════
 # Logging 設定
 # ═══════════════════════════════════════════════════════════════════
@@ -332,6 +379,148 @@ def call_step2_gri_parser(
     save_step_cache(company, 2, result)
     logger.info(f"[Step 2] 快取已存：{_cache_path(company, 2).name}")
     return result
+
+# ═══════════════════════════════════════════════════════════════════
+# Step 2A: 章節編號解析（Tier A Fallback）
+# ═══════════════════════════════════════════════════════════════════
+
+def resolve_section_references(
+    gri_pages: list[dict],
+    all_pages: list[dict],
+    indicator_pages: dict[str, list[int] | None],
+    page_offset: int,
+    logger: logging.Logger,
+) -> dict[str, list[int]]:
+    """
+    Tier A Fallback：當 GRI 索引使用章節編號（如「第四章 4.2.2.1」）而非頁碼時，
+    透過三步驟將章節編號轉換成實際頁碼：
+      1. 從 GRI 索引文字找出各指標的 GRI 準則代號對應的章節編號（純 Regex，無 Gemini）
+      2. 用 PyMuPDF-style 文字搜尋在全文中定位章節編號出現的頁面
+      3. 過濾掉 GRI 索引自身頁面，取內容頁
+
+    回傳：{indicator_key: [printed_page, ...]}（只包含新找到的指標）
+    """
+    missing = [k for k, v in indicator_pages.items() if not v]
+    if not missing:
+        return {}
+
+    # ── Step 2A-1：從 GRI 索引文字提取章節編號 ──────────────────────
+    # 合併所有 GRI 索引頁面的文字
+    gri_text = "\n".join(p["text"] for p in gri_pages)
+    gri_index_start_page = gri_pages[0]["page"] if gri_pages else len(all_pages)
+
+    # 章節編號 pattern：X.X、X.X.X、X.X.X.X（前後不能是數字，避免誤配 GRI 305-1）
+    SECTION_PAT = re.compile(r'(?<!\d)(\d+\.\d+(?:\.\d+){0,2})(?!\d)')
+
+    # 找出各指標在 GRI 索引裡最可能的章節編號
+    indicator_sections: dict[str, str] = {}
+    for key in missing:
+        gri_codes = INDICATOR_GRI_CODES.get(key, [])
+        for code in gri_codes:
+            # 找含有此 GRI 代號的行
+            for line in gri_text.splitlines():
+                if code in line:
+                    sections = SECTION_PAT.findall(line)
+                    # 取最長（最具體）的章節編號，且至少要有兩層（X.X）
+                    candidates = [s for s in sections if s.count('.') >= 1]
+                    if candidates:
+                        # 優先選最具體的（點最多），相同則取最後一個（位置欄通常在右側）
+                        best = max(candidates, key=lambda s: (s.count('.'), len(s)))
+                        indicator_sections[key] = best
+                        break
+            if key in indicator_sections:
+                break
+
+    found_sections = len(indicator_sections)
+    logger.info(f"[Step 2A] Regex 從 GRI 索引提取章節編號：{found_sections} 個")
+    for k, s in indicator_sections.items():
+        logger.debug(f"[Step 2A]   {k} → 章節 {s}")
+
+    if not indicator_sections:
+        logger.warning("[Step 2A] 未找到任何章節編號，Tier A 失敗")
+        return {}
+
+    # ── Step 2A-2：全文搜尋章節編號 → 找物理頁 ───────────────────────
+    # 只搜尋「內容頁」：排除開頭 15 頁（封面/目錄）和 GRI 索引頁（最後 40 頁）
+    content_pages = [
+        p for p in all_pages
+        if 15 < p["page"] < gri_index_start_page - 5
+    ]
+
+    result: dict[str, list[int]] = {}
+    for key, section in indicator_sections.items():
+        # 計算每頁的命中次數（優先選命中多的頁）
+        page_hits: dict[int, int] = {}
+        for page in content_pages:
+            # 確保是獨立出現的章節編號（避免 "4.2" 誤配 "4.2.2.1"）
+            count = len(re.findall(
+                r'(?<![.\d])' + re.escape(section) + r'(?![.\d])',
+                page["text"]
+            ))
+            if count > 0:
+                printed = page["page"] - page_offset
+                if printed > 0:
+                    page_hits[printed] = count
+
+        if page_hits:
+            top_pages = sorted(page_hits, key=lambda p: -page_hits[p])[:2]
+            result[key] = sorted(top_pages)
+            logger.info(f"[Step 2A] {key}: 章節 {section} → 印刷頁 {result[key]}")
+        else:
+            logger.debug(f"[Step 2A] {key}: 章節 {section} 在內容頁未找到")
+
+    logger.info(f"[Step 2A] 完成，新增 {len(result)} 個指標頁碼")
+    return result
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Step 2B: 關鍵字搜尋（Tier B Fallback）
+# ═══════════════════════════════════════════════════════════════════
+
+def search_by_keywords(
+    all_pages: list[dict],
+    missing_keys: list[str],
+    page_offset: int,
+    gri_index_start_page: int,
+    logger: logging.Logger,
+) -> dict[str, list[int]]:
+    """
+    Tier B Fallback：對每個仍缺頁碼的指標，在全文（排除 GRI 索引區）
+    搜尋預定義關鍵字，取命中最多的前 2 頁作為候選。
+    純 Python，不呼叫 Gemini。
+    """
+    if not missing_keys:
+        return {}
+
+    # 內容頁：排除開頭 15 頁和 GRI 索引頁
+    content_pages = [
+        p for p in all_pages
+        if 15 < p["page"] < gri_index_start_page - 5
+    ]
+
+    result: dict[str, list[int]] = {}
+    for key in missing_keys:
+        keywords = INDICATOR_KEYWORDS.get(key, [])
+        if not keywords:
+            continue
+
+        page_hits: dict[int, int] = {}
+        for page in content_pages:
+            text = page["text"]
+            hits = sum(1 for kw in keywords if kw in text)
+            if hits > 0:
+                printed = page["page"] - page_offset
+                if printed > 0:
+                    page_hits[printed] = page_hits.get(printed, 0) + hits
+
+        if page_hits:
+            top_pages = sorted(page_hits, key=lambda p: -page_hits[p])[:2]
+            result[key] = sorted(top_pages)
+            logger.info(f"[Step 2B] {key}: 關鍵字命中 → 印刷頁 {result[key]}")
+
+    logger.info(f"[Step 2B] 完成，新增 {len(result)} 個指標頁碼")
+    return result
+
 
 # ═══════════════════════════════════════════════════════════════════
 # Step 3: pypdf 切片 → 精簡 PDF
@@ -725,11 +914,17 @@ def process_company(info: dict, force_all: bool, force_step: int | None) -> bool
         # ── Step 2 ─────────────────────────────────────────────
         logger.info("── Step 2: Gemini 解析 GRI 索引 ────────────────")
         time.sleep(2)
-        gri_result = call_step2_gri_parser(gri_pages, company, logger, force_step)
+        try:
+            gri_result = call_step2_gri_parser(gri_pages, company, logger, force_step)
+            page_offset     = gri_result.get("page_offset", offset_guess)
+            indicator_pages = gri_result.get("indicators", {})
+        except Exception as step2_err:
+            # Gemini 不可用（503/429）時，用空結果繼續，讓 Tier A/B fallback 接手
+            logger.warning(f"[Step 2] Gemini 失敗（{step2_err}），跳過 GRI 解析，改用純文字 fallback")
+            page_offset     = offset_guess
+            indicator_pages = {k: None for k in INDICATOR_GRI_CODES}
 
-        page_offset      = gri_result.get("page_offset", offset_guess)
-        indicator_pages  = gri_result.get("indicators", {})
-        found_mappings   = {k: v for k, v in indicator_pages.items() if v}
+        found_mappings = {k: v for k, v in indicator_pages.items() if v}
 
         # 合理性檢查：Gemini 的 page_offset 若和 Python 偵測值差距 > 15，改用 Python 值
         if abs(page_offset - offset_guess) > 15:
@@ -740,6 +935,49 @@ def process_company(info: dict, force_all: bool, force_step: int | None) -> bool
             page_offset = offset_guess
 
         logger.info(f"使用 page_offset = {page_offset}（共 {len(found_mappings)}/18 個指標有頁碼）")
+
+        # GRI 索引起始物理頁（用於 fallback 過濾）
+        gri_index_start_page = gri_pages[0]["page"] if gri_pages else len(pages)
+
+        # ── Step 2A/2B: Fallback — 章節編號解析 + 關鍵字搜尋 ────────
+        fallback_triggered = False
+        if len(found_mappings) < FALLBACK_THRESHOLD:
+            fallback_triggered = True
+            logger.info(
+                f"[Fallback] Step 2 僅找到 {len(found_mappings)} 個頁碼（< {FALLBACK_THRESHOLD}），"
+                "啟動 Tier A：章節編號解析"
+            )
+            section_pages = resolve_section_references(
+                gri_pages, pages, indicator_pages, page_offset, logger
+            )
+            for k, v in section_pages.items():
+                if k not in found_mappings or not found_mappings[k]:
+                    found_mappings[k] = v
+                    indicator_pages[k] = v
+            logger.info(f"[Fallback] Tier A 後：共 {len(found_mappings)}/18 個指標有頁碼")
+
+            # ── Step 2B: Tier B Fallback — 關鍵字搜尋 ──────────────
+            if len(found_mappings) < FALLBACK_THRESHOLD:
+                logger.info(
+                    f"[Fallback] Tier A 後仍只有 {len(found_mappings)} 個，"
+                    "啟動 Tier B：關鍵字搜尋"
+                )
+                still_missing = [k for k in indicator_pages if not found_mappings.get(k)]
+                keyword_pages = search_by_keywords(
+                    pages, still_missing, page_offset, gri_index_start_page, logger
+                )
+                for k, v in keyword_pages.items():
+                    if k not in found_mappings or not found_mappings[k]:
+                        found_mappings[k] = v
+                        indicator_pages[k] = v
+                logger.info(f"[Fallback] Tier B 後：共 {len(found_mappings)}/18 個指標有頁碼")
+
+        # Fallback 補充了新頁面 → Step 4 的舊 cache 已過時，強制清除重跑
+        if fallback_triggered and len(found_mappings) >= FALLBACK_THRESHOLD:
+            if force_step not in (4, 5):   # 除非使用者明確指定只跑某步驟
+                clear_step_cache(company, 4)
+                clear_step_cache(company, 5)
+                logger.info("[Fallback] 已清除 Step 4/5 cache，將用擴充後的 compact PDF 重新抽取")
 
         # ── Step 3 ─────────────────────────────────────────────
         logger.info("── Step 3: 切片精簡 PDF ─────────────────────────")
@@ -784,7 +1022,11 @@ def process_company(info: dict, force_all: bool, force_step: int | None) -> bool
         # ── Step 5: 定位已知數值的 bbox ───────────────────────────
         logger.info("── Step 5: Gemini 定位指標 bbox 座標 ────────────")
         time.sleep(4)
-        bbox_result = call_step5_bbox_extractor(compact_pdf, indicators, company, logger, force_step)
+        try:
+            bbox_result = call_step5_bbox_extractor(compact_pdf, indicators, company, logger, force_step)
+        except Exception as step5_err:
+            logger.warning(f"[Step 5] bbox 定位失敗（{step5_err}），略過，不影響 ESG 分數")
+            bbox_result = {}
 
         # ── Step 5 後處理：bbox 正規化 + 合併進 indicators ─────────
         compact_page_dims: dict[int, tuple[float, float]] = {}
@@ -842,6 +1084,7 @@ def process_company(info: dict, force_all: bool, force_step: int | None) -> bool
                 "compact_page_map":  compact_page_map,
                 "gri_page_map":      found_mappings,
                 "indicators_found":  found_count,
+                "pdf_path":          str(pdf_path),
             },
         }
 

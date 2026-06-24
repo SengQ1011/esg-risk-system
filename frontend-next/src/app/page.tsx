@@ -7,7 +7,10 @@ import {
   AlertTriangle,
   ArrowRight,
   Building2,
+  ChevronDown,
+  Link2,
   Search,
+  Trash2,
   UploadCloud,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -15,7 +18,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
-import { analyzeCompany } from "@/lib/api"
+import { analyzeCompany, deleteCompany } from "@/lib/api"
 import type { CompanySummary } from "@/lib/types"
 
 // ─────────────────────────────────────────────────────────────
@@ -42,14 +45,37 @@ const gradeColor: Record<string, string> = {
   C:    "text-red-700 bg-red-50 border-red-200",
 }
 
-function CompanyCard({ c }: { c: CompanySummary }) {
+function CompanyCard({ c, onDelete }: { c: CompanySummary; onDelete: () => void }) {
   const s      = c.latest_score
   const signal = deriveSignal(s?.total_score ?? null)
   const cfg    = signalConfig[signal]
   const gCls   = gradeColor[s?.grade ?? ""] ?? "text-gray-700 bg-gray-50 border-gray-200"
+  const [deleting, setDeleting] = useState(false)
+
+  async function handleDelete(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!confirm(`確定要刪除「${c.name}」的所有評分紀錄嗎？`)) return
+    setDeleting(true)
+    try {
+      await deleteCompany(c.name)
+      onDelete()
+    } catch {
+      setDeleting(false)
+    }
+  }
 
   return (
-    <Link href={`/company/${encodeURIComponent(c.name)}`} className="group block">
+    <div className="group relative">
+      <button
+        onClick={handleDelete}
+        disabled={deleting}
+        className="absolute right-2 top-2 z-10 rounded-md p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+        title="刪除紀錄"
+      >
+        <Trash2 className="size-3.5" />
+      </button>
+    <Link href={`/company/${encodeURIComponent(c.name)}`} className="block">
       <Card className="h-full transition-all hover:shadow-md hover:ring-1 hover:ring-primary/20">
         <CardContent className="flex h-full flex-col gap-4 p-5">
           <div className="flex items-start justify-between gap-3">
@@ -123,6 +149,7 @@ function CompanyCard({ c }: { c: CompanySummary }) {
         </CardContent>
       </Card>
     </Link>
+    </div>
   )
 }
 
@@ -131,24 +158,28 @@ function CompanyCard({ c }: { c: CompanySummary }) {
 // ─────────────────────────────────────────────────────────────
 function AnalyzeForm() {
   const router  = useRouter()
-  const [query, setQuery]     = useState("")
-  const [file,  setFile]      = useState<File | null>(null)
+  const [query, setQuery]       = useState("")
+  const [file,  setFile]        = useState<File | null>(null)
+  const [reportUrl, setReportUrl] = useState("")
+  const [showUrlInput, setShowUrlInput] = useState(false)
   const [dragging, setDragging] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error,  setError]    = useState<string | null>(null)
+  const [loading, setLoading]   = useState(false)
+  const [error,  setError]      = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function handleSubmit() {
     const name = query.trim()
-    if (!name && !file) {
-      setError("請輸入公司名稱 / 股票代號，或上傳 PDF 報告書")
+    const url  = reportUrl.trim()
+    if (!name && !file && !url) {
+      setError("請輸入公司名稱 / 股票代號、貼上報告書網址，或上傳 PDF")
       return
     }
     setError(null)
     setLoading(true)
     try {
-      const res = await analyzeCompany(name || "未命名公司", file ?? undefined)
-      router.push(`/job/${res.job_id}?company=${encodeURIComponent(res.company_name)}`)
+      const res = await analyzeCompany(name, file ?? undefined, url || undefined)
+      const companyParam = res.company_name ? `?company=${encodeURIComponent(res.company_name)}` : ""
+      router.push(`/job/${res.job_id}${companyParam}`)
     } catch (e) {
       setError(e instanceof Error ? e.message : "發生未知錯誤")
       setLoading(false)
@@ -224,6 +255,31 @@ function AnalyzeForm() {
           />
         </div>
 
+        {/* 進階選項：貼上 URL */}
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowUrlInput((v) => !v)}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <ChevronDown className={cn("size-3 transition-transform", showUrlInput && "rotate-180")} />
+            找不到報告書？貼上網址
+          </button>
+
+          {showUrlInput && (
+            <div className="mt-2 flex items-center gap-2">
+              <Link2 className="size-4 shrink-0 text-muted-foreground" />
+              <input
+                type="url"
+                value={reportUrl}
+                onChange={(e) => setReportUrl(e.target.value)}
+                placeholder="貼上 PDF 直連 或 CSR 報告頁面網址"
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
+              />
+            </div>
+          )}
+        </div>
+
         {error && (
           <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             <AlertTriangle className="size-4 shrink-0" />
@@ -246,12 +302,15 @@ function CompanyListSection() {
   const [listError, setListError] = useState<string | null>(null)
   const [listLoading, setListLoading] = useState(true)
 
-  useEffect(() => {
+  function loadCompanies() {
+    setListLoading(true)
     fetchCompanies()
       .then((res) => setCompanies(res.data))
       .catch((e) => setListError(e instanceof Error ? e.message : "無法連線至後端 API"))
       .finally(() => setListLoading(false))
-  }, [])
+  }
+
+  useEffect(() => { loadCompanies() }, [])
 
   return (
     <section className="flex flex-col gap-4">
@@ -284,7 +343,7 @@ function CompanyListSection() {
                 </CardContent>
               </Card>
             ))
-          : companies.map((c) => <CompanyCard key={c.name} c={c} />)
+          : companies.map((c) => <CompanyCard key={c.name} c={c} onDelete={loadCompanies} />)
         }
       </div>
 
