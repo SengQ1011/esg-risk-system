@@ -34,8 +34,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
+    allow_origins=["*"],   # 允許所有 origin（含 Cloudflare tunnel URL）
+    allow_credentials=False,  # credentials=True 與 origins=["*"] 互斥，會讓 header 消失
     allow_methods=["*"],
     allow_headers=["*"],
 )

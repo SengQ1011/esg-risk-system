@@ -38,10 +38,11 @@ export async function analyzeCompany(
   companyName: string,
   file?: File,
   reportUrl?: string,
+  year: number = 2023,
 ): Promise<AnalyzeResponse> {
   const form = new FormData()
   if (companyName) form.append("company_name", companyName)
-  form.append("year", "2023")
+  form.append("year", String(year))
   if (file) form.append("pdf_file", file)
   if (reportUrl) form.append("report_url", reportUrl)
 

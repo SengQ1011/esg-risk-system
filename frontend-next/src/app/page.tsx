@@ -156,9 +156,12 @@ function CompanyCard({ c, onDelete }: { c: CompanySummary; onDelete: () => void 
 // ─────────────────────────────────────────────────────────────
 // AnalyzeForm — client-side search + upload
 // ─────────────────────────────────────────────────────────────
+const YEAR_OPTIONS = [2024, 2023, 2022, 2021]
+
 function AnalyzeForm() {
   const router  = useRouter()
   const [query, setQuery]       = useState("")
+  const [year,  setYear]        = useState(2023)
   const [file,  setFile]        = useState<File | null>(null)
   const [reportUrl, setReportUrl] = useState("")
   const [showUrlInput, setShowUrlInput] = useState(false)
@@ -177,7 +180,7 @@ function AnalyzeForm() {
     setError(null)
     setLoading(true)
     try {
-      const res = await analyzeCompany(name, file ?? undefined, url || undefined)
+      const res = await analyzeCompany(name, file ?? undefined, url || undefined, year)
       const companyParam = res.company_name ? `?company=${encodeURIComponent(res.company_name)}` : ""
       router.push(`/job/${res.job_id}${companyParam}`)
     } catch (e) {
@@ -198,7 +201,7 @@ function AnalyzeForm() {
   return (
     <Card className="border-primary/20 shadow-sm">
       <CardContent className="flex flex-col gap-5 p-6">
-        {/* Search input */}
+        {/* Search input + year selector */}
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -211,6 +214,16 @@ function AnalyzeForm() {
               className="w-full rounded-lg border bg-background py-2 pl-9 pr-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
             />
           </div>
+          {/* 年份選擇 */}
+          <select
+            value={year}
+            onChange={(e) => setYear(Number(e.target.value))}
+            className="rounded-lg border bg-background px-2 py-2 text-sm outline-none ring-offset-background focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30 shrink-0"
+          >
+            {YEAR_OPTIONS.map((y) => (
+              <option key={y} value={y}>{y} 年</option>
+            ))}
+          </select>
           <Button
             onClick={handleSubmit}
             disabled={loading}
