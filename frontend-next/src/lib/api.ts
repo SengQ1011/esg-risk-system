@@ -37,11 +37,13 @@ export async function fetchHistory(name: string): Promise<HistoryResponse> {
 export async function analyzeCompany(
   companyName: string,
   file?: File,
+  reportUrl?: string,
 ): Promise<AnalyzeResponse> {
   const form = new FormData()
   if (companyName) form.append("company_name", companyName)
   form.append("year", "2023")
   if (file) form.append("pdf_file", file)
+  if (reportUrl) form.append("report_url", reportUrl)
 
   const res = await fetch(`${BASE_URL}/api/company/analyze`, {
     method: "POST",
@@ -53,6 +55,31 @@ export async function analyzeCompany(
   }
   const json = await res.json()
   return json.data as AnalyzeResponse
+}
+
+/** localStorage key for PiP active job */
+export const PIP_KEY = "esg_active_job"
+
+/** DELETE /api/job/{jobId} — cancel analysis */
+export async function cancelJob(jobId: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/api/job/${encodeURIComponent(jobId)}`, {
+    method: "DELETE",
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: res.statusText }))
+    throw new Error(body.detail ?? `HTTP ${res.status}`)
+  }
+}
+
+/** DELETE /api/company/{name} */
+export async function deleteCompany(name: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/api/company/${encodeURIComponent(name)}`, {
+    method: "DELETE",
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: res.statusText }))
+    throw new Error(body.detail ?? `HTTP ${res.status}`)
+  }
 }
 
 /** GET /api/job/{jobId} — polling fallback */

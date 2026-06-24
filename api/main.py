@@ -22,6 +22,8 @@ from database.crud import (
     get_company_score_history,
     create_job,
     get_job,
+    delete_company,
+    cancel_job,
 )
 
 app = FastAPI(
@@ -280,7 +282,21 @@ def stream_pdf(company_name: str, db: Session = Depends(get_db)):
     filename = f"{company.Name}_2023.pdf"
     pdf_path = os.path.join(_PDF_DIR, filename)
     if not os.path.exists(pdf_path):
-        raise HTTPException(status_code=404, detail=f"PDF 檔案不存在：{filename}")
+        # Fallback：從 indicators cache 找原始上傳路徑
+        import glob as _glob
+        cache_path = os.path.join(
+            os.path.dirname(__file__), "..", "data", "cache",
+            f"{company.Name}_indicators.json"
+        )
+        if os.path.exists(cache_path):
+            import json as _json
+            meta = _json.loads(open(cache_path, encoding="utf-8").read()).get("_meta", {})
+            cached_pdf = meta.get("pdf_path")
+            if cached_pdf and os.path.exists(cached_pdf):
+                pdf_path = cached_pdf
+                filename = os.path.basename(cached_pdf)
+        if not os.path.exists(pdf_path):
+            raise HTTPException(status_code=404, detail=f"PDF 檔案不存在：{filename}")
 
     return FileResponse(pdf_path, media_type="application/pdf", filename=filename)
 
@@ -289,6 +305,39 @@ def stream_pdf(company_name: str, db: Session = Depends(get_db)):
 # 新 Endpoints：Job 系統 + 分析觸發
 # ═══════════════════════════════════════════════════════════════════════════════
 
+@app.delete("/api/company/{company_name}")
+def remove_company(company_name: str, db: Session = Depends(get_db)):
+    """刪除公司及其所有 ESG 評分紀錄，同時清除 step cache，確保重新分析時得到新結果。"""
+    # 先取 ticker（compact PDF 需要用到）
+    company = get_company_by_name(db, company_name)
+    if not company:
+        raise HTTPException(status_code=404, detail=f"找不到公司：{company_name}")
+    ticker = company.Ticker or ""
+
+    delete_company(db, company_name)
+
+    # 清除所有分析 cache，避免重跑時讀到舊的錯誤結果
+    _ROOT = os.path.dirname(os.path.dirname(__file__))
+    cache_files = [
+        os.path.join(_ROOT, "data", "logs",  f"{company_name}_step2_cache.json"),
+        os.path.join(_ROOT, "data", "logs",  f"{company_name}_step4_cache.json"),
+        os.path.join(_ROOT, "data", "logs",  f"{company_name}_step5_cache.json"),
+        os.path.join(_ROOT, "data", "logs",  f"{company_name}_extraction.log"),
+        os.path.join(_ROOT, "data", "cache", f"{company_name}_indicators.json"),
+        os.path.join(_ROOT, "data", "cache", f"{company_name}_news.json"),
+    ]
+    if ticker:
+        cache_files.append(os.path.join(_ROOT, "data", "logs", f"compact_{ticker}.pdf"))
+
+    deleted_files = []
+    for path in cache_files:
+        if os.path.exists(path):
+            os.remove(path)
+            deleted_files.append(os.path.basename(path))
+
+    return {"status": "success", "data": {"deleted": company_name, "cleared_cache": deleted_files}}
+
+
 @app.post("/api/company/analyze")
 def trigger_analysis(
     background_tasks: BackgroundTasks,
@@ -296,6 +345,7 @@ def trigger_analysis(
     ticker: str = Form(default=""),
     year: int = Form(default=2023),
     industry: str = Form(default="其他"),
+    report_url: str = Form(default=""),
     pdf_file: UploadFile = File(default=None),
     db: Session = Depends(get_db),
 ):
@@ -307,12 +357,13 @@ def trigger_analysis(
     - ticker：股票代號（str，可選）
     - year：報告年度（int，預設 2023）
     - industry：產業別（str，預設 "其他"）
-    - pdf_file：PDF 檔案（可選，未提供時用 Gemini Search 下載）
+    - report_url：PDF 直連或 CSR 報告頁面 URL（str，可選；提供時跳過 Gemini Search）
+    - pdf_file：PDF 檔案（可選，未提供時用 report_url 或 Gemini Search 下載）
     """
-    if not company_name and pdf_file is None:
+    if not company_name and pdf_file is None and not report_url:
         raise HTTPException(
             status_code=400,
-            detail="至少需要提供 company_name 或上傳 pdf_file",
+            detail="至少需要提供 company_name、report_url 或上傳 pdf_file",
         )
 
     # 建立 Job 記錄
@@ -350,6 +401,7 @@ def trigger_analysis(
         pdf_path=saved_pdf_path,
         year=year,
         industry=industry,
+        report_url=report_url or "",
     )
 
     return {
@@ -386,6 +438,55 @@ def get_job_status(job_id: str, db: Session = Depends(get_db)):
     }
 
 
+@app.delete("/api/job/{job_id}")
+def cancel_job_endpoint(job_id: str, db: Session = Depends(get_db)):
+    """取消進行中的分析 Job，並清除已產生的中間檔案。"""
+    job = get_job(db, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"找不到 Job：{job_id}")
+    if job.Status in ("done", "cancelled"):
+        return {"status": "success", "data": {"cancelled": job_id, "deleted_files": []}}
+
+    company_name = job.CompanyName
+    ticker       = job.Ticker or ""
+
+    cancel_job(db, job_id)
+
+    _ROOT = os.path.dirname(os.path.dirname(__file__))
+    demo_companies = {"台達電", "中鋼", "南山人壽", "臺積電"}
+    files_to_delete = []
+
+    if company_name:
+        files_to_delete += [
+            os.path.join(_ROOT, "data", "logs",  f"{company_name}_step2_cache.json"),
+            os.path.join(_ROOT, "data", "logs",  f"{company_name}_step4_cache.json"),
+            os.path.join(_ROOT, "data", "logs",  f"{company_name}_step5_cache.json"),
+            os.path.join(_ROOT, "data", "logs",  f"{company_name}_extraction.log"),
+            os.path.join(_ROOT, "data", "cache", f"{company_name}_indicators.json"),
+            os.path.join(_ROOT, "data", "cache", f"{company_name}_news.json"),
+        ]
+        if ticker:
+            files_to_delete.append(os.path.join(_ROOT, "data", "logs", f"compact_{ticker}.pdf"))
+        # 只刪除非 demo 公司的 PDF
+        if company_name not in demo_companies:
+            files_to_delete.append(os.path.join(_ROOT, "data", "pdfs", f"{company_name}_2023.pdf"))
+
+    # 刪除 upload 暫存 PDF（job_id 前 8 碼命名）
+    upload_pdf = os.path.join(_ROOT, "data", "pdfs", f"upload_{job_id[:8]}_2023.pdf")
+    files_to_delete.append(upload_pdf)
+
+    deleted = []
+    for path in files_to_delete:
+        if os.path.exists(path):
+            try:
+                os.remove(path)
+                deleted.append(os.path.basename(path))
+            except Exception:
+                pass
+
+    return {"status": "success", "data": {"cancelled": job_id, "deleted_files": deleted}}
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # WebSocket：即時 Job 進度推送
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -417,7 +518,9 @@ async def ws_job_progress(websocket: WebSocket, job_id: str):
             payload = {
                 "step":         job.CurrentStep or "",
                 "progress":     job.Progress,
-                "done":         job.Status in ("done", "error"),
+                "done":         job.Status == "done",
+                "failed":       job.Status == "error",
+                "cancelled":    job.Status == "cancelled",
                 "status":       job.Status,
                 "company_name": job.CompanyName or "",
                 "error":        job.ErrorMessage or "",

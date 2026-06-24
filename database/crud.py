@@ -100,6 +100,14 @@ def update_job_progress(db: Session, job_id: str, step: str, progress: int) -> N
         db.commit()
 
 
+def update_job_company_name(db: Session, job_id: str, company_name: str) -> None:
+    job = db.query(Job).filter(Job.JobID == job_id).first()
+    if job:
+        job.CompanyName = company_name
+        job.UpdatedAt = datetime.utcnow()
+        db.commit()
+
+
 def finish_job(db: Session, job_id: str, company_name: str) -> None:
     job = db.query(Job).filter(Job.JobID == job_id).first()
     if job:
@@ -121,3 +129,22 @@ def fail_job(db: Session, job_id: str, error: str) -> None:
 
 def get_job(db: Session, job_id: str) -> Job | None:
     return db.query(Job).filter(Job.JobID == job_id).first()
+
+
+def cancel_job(db: Session, job_id: str) -> None:
+    job = db.query(Job).filter(Job.JobID == job_id).first()
+    if job:
+        job.Status = "cancelled"
+        job.UpdatedAt = datetime.utcnow()
+        db.commit()
+
+
+def delete_company(db: Session, name: str) -> bool:
+    """刪除公司及其所有 ESG 評分紀錄，回傳是否成功找到並刪除。"""
+    company = db.query(Company).filter(Company.Name == name).first()
+    if not company:
+        return False
+    db.query(ESGScore).filter(ESGScore.CompanyID == company.ID).delete()
+    db.delete(company)
+    db.commit()
+    return True

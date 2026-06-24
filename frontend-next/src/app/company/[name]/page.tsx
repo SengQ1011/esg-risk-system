@@ -113,6 +113,9 @@ function WarningList({
     (e) => e.severity === "critical" || e.severity === "high" || e.severity === "medium"
   )
 
+  const totalItems = warnings.length + newsItems.length + greenwashDetails.length
+  const hasMany    = totalItems > 3
+
   return (
     <Card className="flex flex-col">
       <CardHeader>
@@ -121,13 +124,23 @@ function WarningList({
             <AlertTriangle className="size-4 text-red-600" />
             <CardTitle className="text-base">風險警示清單</CardTitle>
           </div>
-          {highCount > 0 && (
-            <Badge variant="destructive" className="tabular-nums">{highCount} 項高風險</Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {highCount > 0 && (
+              <Badge variant="destructive" className="tabular-nums">{highCount} 項高風險</Badge>
+            )}
+            {totalItems > 0 && (
+              <span className="text-xs text-muted-foreground">共 {totalItems} 則</span>
+            )}
+          </div>
         </div>
         <CardDescription>負面新聞與漂綠爭議追蹤（含佐證鏈接）</CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 space-y-2.5">
+      {/* 超過 3 則時固定高度並可捲動，底部漸層提示還有更多內容 */}
+      <div className={cn("relative flex-1", hasMany && "overflow-hidden")}>
+        <CardContent className={cn(
+          "space-y-2.5",
+          hasMany && "max-h-[380px] overflow-y-auto pb-8 scrollbar-thin"
+        )}>
         {warnings.length === 0 && newsItems.length === 0 && greenwashDetails.length === 0 ? (
           <p className="text-sm text-muted-foreground">目前無重大風險警示</p>
         ) : null}
@@ -198,7 +211,12 @@ function WarningList({
         ))}
 
         {reasoning && <p className="mt-1 text-xs text-muted-foreground">{reasoning}</p>}
-      </CardContent>
+        </CardContent>
+        {/* 底部漸層：提示使用者還有更多內容可捲動 */}
+        {hasMany && (
+          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-card to-transparent" />
+        )}
+      </div>
     </Card>
   )
 }
@@ -234,7 +252,7 @@ export default async function CompanyPage({ params }: PageProps) {
 
       <ScorecardHeader detail={detail} />
 
-      <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <section className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
         <EsgRadarChartClient
           eScore={score.e_score} sScore={score.s_score} gScore={score.g_score}
           eMissing={eMissing} sMissing={sMissing} gMissing={gMissing}

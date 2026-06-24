@@ -13,7 +13,7 @@ interface PageProps {
 export default async function JobPage({ params, searchParams }: PageProps) {
   const { jobId }    = await params
   const { company }  = await searchParams
-  const companyName  = company ? decodeURIComponent(company) : "未命名公司"
+  const companyName  = company ? decodeURIComponent(company) : ""
 
   return <JobProgressClient jobId={jobId} initialCompanyName={companyName} />
 }

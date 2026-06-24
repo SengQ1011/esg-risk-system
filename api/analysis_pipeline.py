@@ -29,7 +29,7 @@ _ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_ROOT))
 
 from database.models import SessionLocal
-from database.crud import update_job_progress, finish_job, fail_job, get_job
+from database.crud import update_job_progress, update_job_company_name, finish_job, fail_job, get_job, cancel_job as _crud_cancel_job
 
 # ── 路徑常數 ──────────────────────────────────────────────────────────────────
 PDF_DIR   = _ROOT / "data" / "pdfs"
@@ -47,6 +47,23 @@ def _db_update(job_id: str, step: str, progress: int) -> None:
     db = SessionLocal()
     try:
         update_job_progress(db, job_id, step, progress)
+    finally:
+        db.close()
+
+
+def _is_job_cancelled(job_id: str) -> bool:
+    db = SessionLocal()
+    try:
+        job = get_job(db, job_id)
+        return bool(job and job.Status == "cancelled")
+    finally:
+        db.close()
+
+
+def _db_set_company_name(job_id: str, company_name: str) -> None:
+    db = SessionLocal()
+    try:
+        update_job_company_name(db, job_id, company_name)
     finally:
         db.close()
 
@@ -69,18 +86,50 @@ def _db_fail(job_id: str, error: str) -> None:
 
 # ── PDF 下載（Gemini Search）─────────────────────────────────────────────────
 
-def search_esg_report_url(company_name: str, ticker: str, year: int) -> str | None:
-    """用 Gemini Search 找永續報告書的 PDF 直連下載 URL。"""
+def scrape_pdf_from_page(page_url: str) -> list[str]:
+    """爬取指定頁面，找出所有 PDF 下載連結。"""
+    import requests
+    from urllib.parse import urljoin, urlparse
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        )
+    }
+    try:
+        resp = requests.get(page_url, headers=headers, timeout=20)
+        resp.raise_for_status()
+        # 從 HTML 中找 href 含 .pdf 的連結
+        pdf_links = re.findall(r'href=["\']([^"\']*\.pdf[^"\']*)["\']', resp.text, re.IGNORECASE)
+        base = f"{urlparse(page_url).scheme}://{urlparse(page_url).netloc}"
+        result = []
+        seen: set[str] = set()
+        for link in pdf_links:
+            full = link if link.startswith("http") else urljoin(base, link)
+            if full not in seen:
+                seen.add(full)
+                result.append(full)
+        print(f"[scrape_pdf_from_page] 從 {page_url} 找到 {len(result)} 個 PDF 連結")
+        return result
+    except Exception as e:
+        print(f"[scrape_pdf_from_page] 爬取失敗：{e}")
+        return []
+
+
+def search_esg_report_url(company_name: str, ticker: str, year: int) -> list[str]:
+    """用 Gemini Search 找永續報告書的 PDF 直連下載 URL，回傳候選清單（最多 3 個）。"""
     from google import genai
     from google.genai import types
 
     client = genai.Client()
+    ticker_hint = f"（股票代號 {ticker}）" if ticker else ""
     try:
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=(
-                f"請找出{company_name}（股票代號 {ticker}）{year} 年永續報告書的 PDF 直連下載網址，"
-                "只回傳 URL，不要其他說明文字。"
+                f"請找出{company_name}{ticker_hint}{year} 年永續報告書或 CSR 報告書的 PDF 直連下載網址，"
+                "列出你找到的所有 PDF 連結（最多 3 個），每行一個 URL，不要其他說明文字。"
             ),
             config=types.GenerateContentConfig(
                 tools=[types.Tool(google_search=types.GoogleSearch())]
@@ -88,10 +137,19 @@ def search_esg_report_url(company_name: str, ticker: str, year: int) -> str | No
         )
         text = response.text or ""
         urls = re.findall(r"https?://[^\s\)\"\'\n]+\.pdf", text, re.IGNORECASE)
-        return urls[0] if urls else None
+        # 去重並最多保留 3 個
+        seen: set[str] = set()
+        result: list[str] = []
+        for u in urls:
+            if u not in seen:
+                seen.add(u)
+                result.append(u)
+            if len(result) >= 3:
+                break
+        return result
     except Exception as e:
         print(f"[search_esg_report_url] Gemini Search 失敗：{e}")
-        return None
+        return []
 
 
 def download_pdf(url: str, dest: Path) -> bool:
@@ -276,6 +334,7 @@ async def run_analysis(
     pdf_path: str | None,
     year: int,
     industry: str = "其他",
+    report_url: str = "",
 ) -> None:
     """
     完整 M1 + M2 + M3 分析 pipeline。
@@ -303,33 +362,66 @@ async def run_analysis(
         await loop.run_in_executor(None, _db_update, job_id, "搜尋/下載報告書 PDF", 10)
 
         actual_pdf_path: Path | None = None
+        dest_name = f"{company_name or 'upload'}_{year}.pdf"
 
         if pdf_path:
+            # 優先：使用者已上傳 PDF
             actual_pdf_path = Path(pdf_path)
+
+        elif report_url:
+            # 次優先：使用者提供 URL（PDF 直連 或 CSR 報告頁面）
+            dest = PDF_DIR / dest_name
+            if report_url.lower().endswith(".pdf"):
+                # 直連 PDF → 直接下載
+                print(f"[pipeline] 使用者提供 PDF URL，直接下載：{report_url}")
+                ok = await loop.run_in_executor(None, partial(download_pdf, report_url, dest))
+                if ok:
+                    actual_pdf_path = dest
+            else:
+                # 報告頁面 → 爬 PDF 連結再下載
+                print(f"[pipeline] 使用者提供報告頁面，爬取 PDF 連結：{report_url}")
+                candidates = await loop.run_in_executor(
+                    None, partial(scrape_pdf_from_page, report_url)
+                )
+                for url in candidates:
+                    print(f"[pipeline] 嘗試下載 PDF：{url}")
+                    ok = await loop.run_in_executor(None, partial(download_pdf, url, dest))
+                    if ok:
+                        actual_pdf_path = dest
+                        break
+                if actual_pdf_path is None:
+                    print(f"[pipeline] 從頁面爬取的 {len(candidates)} 個 PDF 連結均失敗")
+
         else:
-            # 嘗試用現有 PDF（三家 Demo 公司的命名規則）
+            # 最後才用 Gemini Search（自動流程）
             if company_name:
                 guessed = PDF_DIR / f"{company_name}_2023.pdf"
                 if guessed.exists():
                     actual_pdf_path = guessed
                     print(f"[pipeline] 找到既有 PDF：{guessed.name}")
 
-            # 若無，用 Gemini Search 搜尋並下載
             if actual_pdf_path is None and company_name:
-                url = await loop.run_in_executor(
+                dest = PDF_DIR / dest_name
+                candidate_urls = await loop.run_in_executor(
                     None,
                     partial(search_esg_report_url, company_name, ticker, year),
                 )
-                if url:
-                    dest = PDF_DIR / f"{company_name}_{year}.pdf"
+                for url in candidate_urls:
+                    print(f"[pipeline] 嘗試下載 PDF：{url}")
                     ok = await loop.run_in_executor(None, partial(download_pdf, url, dest))
                     if ok:
                         actual_pdf_path = dest
+                        break
+                if actual_pdf_path is None:
+                    print(f"[pipeline] Gemini Search 所有候選均失敗（共 {len(candidate_urls)} 個）")
 
         if actual_pdf_path is None or not actual_pdf_path.exists():
             raise FileNotFoundError(
-                f"無法取得 PDF：company={company_name}, ticker={ticker}, year={year}"
+                f"無法取得 PDF：{company_name} {year} 年報告書。"
+                "請改用「上傳 PDF」方式手動提供報告書檔案。"
             )
+
+        if await loop.run_in_executor(None, _is_job_cancelled, job_id): return
 
         # ── Step 2：AI 識別公司名稱（progress 20）──────────────────────────
         await loop.run_in_executor(None, _db_update, job_id, "識別公司名稱", 20)
@@ -339,11 +431,25 @@ async def run_analysis(
                 None, partial(identify_company_from_pdf, actual_pdf_path)
             )
             if identified:
-                company_name = identified.get("company_name", "未知公司")
+                company_name = identified.get("company_name") or ""
                 if not ticker:
                     ticker = identified.get("ticker", "")
-            else:
-                company_name = actual_pdf_path.stem  # fallback：用檔名
+            if not company_name:
+                raise ValueError(
+                    "無法從 PDF 封面辨識公司名稱，請返回並手動輸入公司名稱或股票代號。"
+                )
+
+        # 識別到公司名後立即寫入 DB，讓 WebSocket 能即時傳給前端
+        await loop.run_in_executor(None, _db_set_company_name, job_id, company_name)
+
+        # upload_* 暫存檔 → 改名為 {company_name}_{year}.pdf，讓 PDF endpoint 能找到
+        canonical_pdf = PDF_DIR / f"{company_name}_{year}.pdf"
+        if actual_pdf_path != canonical_pdf and not canonical_pdf.exists():
+            actual_pdf_path.rename(canonical_pdf)
+            actual_pdf_path = canonical_pdf
+            print(f"[pipeline] PDF 改名：{canonical_pdf.name}")
+
+        if await loop.run_in_executor(None, _is_job_cancelled, job_id): return
 
         # 確保 news cache 存在
         await loop.run_in_executor(None, _ensure_news_cache, company_name, ticker)
@@ -361,13 +467,19 @@ async def run_analysis(
 
         await loop.run_in_executor(None, _db_update, job_id, "M1：指標抽取完成", 65)
 
+        if await loop.run_in_executor(None, _is_job_cancelled, job_id): return
+
         # ── Step 5：bbox 修正（progress 80）────────────────────────────────
         await loop.run_in_executor(None, _db_update, job_id, "修正指標 bbox 座標", 80)
         await loop.run_in_executor(None, partial(_run_fix_bbox, company_name))
 
+        if await loop.run_in_executor(None, _is_job_cancelled, job_id): return
+
         # ── Step 6：M2 新聞評分（progress 88）─────────────────────────────
         await loop.run_in_executor(None, _db_update, job_id, "M2：新聞事件評分", 88)
         await loop.run_in_executor(None, partial(_run_m2, company_name, ticker))
+
+        if await loop.run_in_executor(None, _is_job_cancelled, job_id): return
 
         # ── Step 7：M3 漂綠偵測（progress 94）─────────────────────────────
         await loop.run_in_executor(None, _db_update, job_id, "M3：漂綠偵測", 94)
