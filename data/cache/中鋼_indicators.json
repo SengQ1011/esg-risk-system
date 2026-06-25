@@ -72,7 +72,20 @@
       "source_page": 57,
       "confidence": 0.95,
       "_compact_page": 6,
-      "bbox": null,
+      "bbox": [
+        [
+          0.9217,
+          0.4174,
+          0.9501,
+          0.429
+        ],
+        [
+          0.9267,
+          0.5352,
+          0.95,
+          0.5468
+        ]
+      ],
       "_pdf_page": 31
     },
     "renewable_ratio": {
@@ -82,7 +95,20 @@
       "source_page": 55,
       "confidence": 0.95,
       "_compact_page": 6,
-      "bbox": null,
+      "bbox": [
+        [
+          0.9267,
+          0.5352,
+          0.95,
+          0.5468
+        ],
+        [
+          0.9217,
+          0.4174,
+          0.9501,
+          0.429
+        ]
+      ],
       "_pdf_page": 31
     },
     "water": {
@@ -122,12 +148,7 @@
       "source_page": 89,
       "confidence": 0.95,
       "_compact_page": 21,
-      "bbox": [
-        0.4283,
-        0.7385,
-        0.4408,
-        0.7501
-      ],
+      "bbox": null,
       "_pdf_page": 49
     },
     "turnover": {
@@ -147,10 +168,10 @@
       "confidence": 0.95,
       "_compact_page": 16,
       "bbox": [
-        0.6251,
-        0.3692,
-        0.6388,
-        0.383
+        0.9316,
+        0.6414,
+        0.95,
+        0.653
       ],
       "_pdf_page": 41
     },

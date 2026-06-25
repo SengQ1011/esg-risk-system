@@ -57,12 +57,7 @@
       "source_page": 101,
       "confidence": 0.95,
       "_compact_page": 7,
-      "bbox": [
-        0.6614,
-        0.359,
-        0.6817,
-        0.3791
-      ],
+      "bbox": null,
       "_pdf_page": 104
     },
     "electricity": {
@@ -87,12 +82,7 @@
       "source_page": 108,
       "confidence": 0.95,
       "_compact_page": 7,
-      "bbox": [
-        0.2953,
-        0.4848,
-        0.3169,
-        0.5049
-      ],
+      "bbox": null,
       "_pdf_page": 104
     },
     "water": {
@@ -132,12 +122,7 @@
       "source_page": 186,
       "confidence": 0.95,
       "_compact_page": 44,
-      "bbox": [
-        0.2687,
-        0.2945,
-        0.2897,
-        0.3135
-      ],
+      "bbox": null,
       "_pdf_page": 188
     },
     "turnover": {
@@ -147,12 +132,7 @@
       "source_page": 140,
       "confidence": 0.95,
       "_compact_page": 28,
-      "bbox": [
-        0.1269,
-        0.4136,
-        0.1515,
-        0.4325
-      ],
+      "bbox": null,
       "_pdf_page": 142
     },
     "female_ratio": {
@@ -180,7 +160,7 @@
       "bbox": [
         0.6984,
         0.3203,
-        0.7144,
+        0.7266,
         0.3471
       ],
       "_pdf_page": 147
@@ -192,12 +172,7 @@
       "source_page": 163,
       "confidence": 0.95,
       "_compact_page": 35,
-      "bbox": [
-        0.6445,
-        0.7118,
-        0.6657,
-        0.7319
-      ],
+      "bbox": null,
       "_pdf_page": 165
     },
     "independent_director_ratio": {
