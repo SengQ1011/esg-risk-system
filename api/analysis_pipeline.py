@@ -117,38 +117,320 @@ def scrape_pdf_from_page(page_url: str) -> list[str]:
         return []
 
 
+_CGC_NAV_PREFIXES = (
+    "https://esg.twse.com.tw/ESG/front",
+    "https://cgc.twse.com.tw/front",
+    "/front", "/pressReleases", "/newsletter", "/latestNews",
+    "/responsibilityPlan", "/relatedRules", "/disclosure", "/training",
+    "javascript", "#",
+)
+
+
+def _query_cgc(ticker: str, year: int) -> list[str]:
+    """
+    查詢 TWSE 公司治理中心（cgc.twse.com.tw）取得永續報告書連結。
+    覆蓋率 ~89%，比 Gemini 訓練資料（~20%）高出許多。
+    須提供股票代號（ticker），不接受公司名稱查詢。
+
+    策略：中文頁（zhPage，民國年）→ 英文頁（enPage，西元年）依序嘗試。
+    """
+    import requests as _req
+    from bs4 import BeautifulSoup as _BS
+    from urllib.parse import urljoin
+
+    base = "https://cgc.twse.com.tw"
+    roc_year = year - 1911
+
+    # (page_slug, action_key, year_value)
+    endpoints = [
+        ("zhPage", "_action_zhPage", str(roc_year)),  # 中文頁優先，用民國年
+        ("enPage", "_action_enPage", str(year)),       # 英文頁備援，用西元年
+        ("enPage", "_action_enPage", str(roc_year)),   # 英文頁也試民國年（部分版本）
+    ]
+
+    def _scrape(page: str, action_key: str, year_val: str, market_type: str) -> list[str]:
+        page_url = f"{base}/corpSocialResponsibility/{page}"
+        sess = _req.Session()
+        sess.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Referer": page_url,
+        })
+        sess.get(page_url, timeout=10)
+        payload = {
+            "stkName": "", "stkNo": ticker,
+            "type": market_type, "year": year_val,
+            action_key: "Search",
+        }
+        r = sess.post(
+            page_url,
+            data=payload,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            timeout=15,
+        )
+        if r.status_code != 200:
+            return []
+        found: list[str] = []
+        soup = _BS(r.text, "html.parser")
+        for table in soup.find_all("table"):
+            for tr in table.find_all("tr"):
+                if ticker not in tr.get_text(" ", strip=True):
+                    continue
+                for a in tr.find_all("a", href=True):
+                    href = a["href"]
+                    if not href or any(href.startswith(p) for p in _CGC_NAV_PREFIXES):
+                        continue
+                    full = href if href.startswith("http") else urljoin(base, href)
+                    if full not in found:
+                        found.append(full)
+        return found
+
+    # 瀏覽器完整 headers（與 proxy_pdf 一致，可繞過 Cloudflare 基本防護）
+    _BROWSER_HEADERS = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/pdf,*/*",
+        "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
+    }
+
+    # 英文→繁中 URL token 替換規則（會同時套用所有命中的規則）
+    # 格式：(英文 token, 繁中 token)
+    _ZH_PATTERNS = [
+        ("/en-US/",   "/zh-TW/"),   # 標準 i18n 路徑
+        ("/en/",      "/zh-TW/"),
+        ("/en/",      "/zh/"),
+        ("/en/",      "/cht/"),
+        ("/ENG/",     "/CHT/"),
+        ("/english/", "/chinese/"),
+        ("/english/", "/traditional/"),
+        ("_en.",      "_zh."),
+        ("_en.",      "_ch."),
+        ("_EN.",      "_ZH."),
+        ("-en.",      "-zh."),
+        ("-en.",      "-ch."),
+        ("-e.pdf",    "-c.pdf"),    # TSMC 2024 格式：*-e.pdf → *-c.pdf
+        ("/e-all",    "/c-all"),    # TSMC 2023 格式：e-all → c-all
+        ("_E_",       "_C_"),
+        ("_eng.",     "_chi."),
+    ]
+
+    def _verify_pdf_url(url: str) -> bool:
+        """用 GET + Range 驗證 URL 是否可存取並回傳 PDF（比 HEAD 更能繞過 Cloudflare）。"""
+        import requests as _req2
+        try:
+            r = _req2.get(
+                url,
+                headers={**_BROWSER_HEADERS, "Range": "bytes=0-1023", "Referer": url},
+                timeout=8,
+                allow_redirects=True,
+                stream=True,
+            )
+            if r.status_code not in (200, 206):
+                return False
+            ct = r.headers.get("content-type", "")
+            return "pdf" in ct or "octet-stream" in ct or url.lower().endswith(".pdf")
+        except Exception:
+            return False
+
+    def _prefer_chinese(urls: list[str]) -> list[str]:
+        """
+        嘗試把英文版 URL 替換為繁體中文版。
+        策略：先同時套用所有命中規則（最精確），再單獨套用每條（備援）。
+        使用 GET+Range（非 HEAD）以繞過 Cloudflare 等 bot 防護。
+        若所有候選均失敗則保留原英文版（英文版也可繼續分析）。
+        """
+        result: list[str] = []
+        for u in urls:
+            # 找出所有命中的替換規則
+            applicable = [(old, new) for old, new in _ZH_PATTERNS if old in u]
+            if not applicable:
+                result.append(u)
+                continue
+
+            candidates: list[str] = []
+
+            # 優先：同時套用所有命中規則（例：/en-US/ + /e-all 一起換）
+            combined = u
+            for old, new in applicable:
+                combined = combined.replace(old, new)
+            if combined != u:
+                candidates.append(combined)
+
+            # 備援：單獨套用每條規則
+            for old, new in applicable:
+                single = u.replace(old, new)
+                if single != u and single not in candidates:
+                    candidates.append(single)
+
+            replaced = False
+            for zh in candidates:
+                print(f"[CGC] 嘗試繁中版：{zh}")
+                if _verify_pdf_url(zh):
+                    print(f"[CGC] 繁中版確認可用：{zh}")
+                    result.append(zh)
+                    replaced = True
+                    break
+                else:
+                    print(f"[CGC] 繁中版候選不可用：{zh}")
+
+            if not replaced:
+                result.append(u)
+        return result
+
+    for page, action_key, year_val in endpoints:
+        for market_type in ("Listed", "OTC"):
+            try:
+                results = _scrape(page, action_key, year_val, market_type)
+                if results:
+                    print(f"[CGC] {ticker} {page} year={year_val}（{market_type}）找到 {len(results)} 個：{results[:2]}")
+                    results = _prefer_chinese(results)
+                    return results[:3]
+            except Exception as e:
+                print(f"[CGC] {ticker} {page} year={year_val} {market_type} 失敗：{e}")
+
+    return []
+
+
 def search_esg_report_url(company_name: str, ticker: str, year: int) -> list[str]:
-    """用 Gemini Search 找永續報告書的 PDF 直連下載 URL，回傳候選清單（最多 3 個）。"""
+    """
+    搜尋永續報告書 URL，三段式策略：
+    1. TWSE 公司治理中心（CGC）— 覆蓋台灣所有上市櫃公司，需要 ticker
+    2. Gemini google_search grounding — 即時搜尋，但有 503 過載風險
+    3. Gemini 訓練資料 fallback — 知名公司有效，不依賴外部服務
+    """
+    import time as _time
     from google import genai
     from google.genai import types
 
+    # ── 第一段：TWSE 公司治理中心（CGC）— 最可靠，覆蓋台灣上市櫃 ~89% ──
+    if ticker:
+        cgc_urls = _query_cgc(ticker, year)
+        if cgc_urls:
+            return cgc_urls
+        print(f"[search_esg_report_url] CGC 無結果，切換 Gemini Search")
+    else:
+        print(f"[search_esg_report_url] 未提供 ticker，跳過 CGC 直接用 Gemini")
+
     client = genai.Client()
     ticker_hint = f"（股票代號 {ticker}）" if ticker else ""
-    try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=(
-                f"請找出{company_name}{ticker_hint}{year} 年永續報告書或 CSR 報告書的 PDF 直連下載網址，"
-                "列出你找到的所有 PDF 連結（最多 3 個），每行一個 URL，不要其他說明文字。"
-            ),
-            config=types.GenerateContentConfig(
-                tools=[types.Tool(google_search=types.GoogleSearch())]
-            ),
-        )
-        text = response.text or ""
-        urls = re.findall(r"https?://[^\s\)\"\'\n]+\.pdf", text, re.IGNORECASE)
-        # 去重並最多保留 3 個
+    # 改問「永續頁面在哪」而非「PDF 直連是什麼」
+    # Gemini grounding 找頁面 URL 的成功率遠高於找 PDF 直連
+    prompt = (
+        f"請用 Google 搜尋找出 {company_name}{ticker_hint} 的官方【永續報告書 / ESG報告書 / CSR報告書】下載頁面或 PDF 直連。"
+        f"目標年份：{year} 年。"
+        "優先繁體中文版（Traditional Chinese）。"
+        "重要：不要年報（Annual Report）、不要財務報告，只要永續/ESG/CSR 報告書頁面或 PDF。"
+        "只輸出 1~3 個 URL（可以是頁面網址或 PDF 直連），每行一個，不要任何說明文字。"
+    )
+    import time as _time
+
+    _CHINESE_HINTS = ("_ch", "_zh", "_tw", "chinese", "traditional", "繁體", "zh-tw", "cht")
+    _ENGLISH_HINTS = ("_en", "_english", "english", "en-us", "eng")
+
+    def _url_priority(u: str) -> int:
+        """中文版 URL 排最前（0），英文版其次（1），其他（2）。"""
+        ul = u.lower()
+        if any(h in ul for h in _CHINESE_HINTS):
+            return 0
+        if any(h in ul for h in _ENGLISH_HINTS):
+            return 1
+        return 2
+
+    def _extract_urls(text: str) -> list[str]:
+        """從 Gemini 回傳文字抽取有效的永續報告書 PDF URL，中文版優先。"""
+        # 同時處理 markdown 連結 [text](url) 和裸 URL
+        md_urls = re.findall(r'\[.*?\]\((https?://[^\)\s]+)\)', text)
+        bare_urls = re.findall(r"https?://[^\s\)\"\'\n<>]+", text)
+        raw = md_urls + bare_urls
         seen: set[str] = set()
-        result: list[str] = []
-        for u in urls:
-            if u not in seen:
-                seen.add(u)
-                result.append(u)
-            if len(result) >= 3:
+        candidates: list[str] = []
+        for u in raw:
+            u = u.rstrip(".,;")
+            if u in seen:
+                continue
+            seen.add(u)
+            u_lower = u.lower()
+            if any(kw in u_lower for kw in (
+                "annual_report", "annual-report", "annualreport",
+                "financial_report", "financial-report", "financialreport",
+            )):
+                print(f"[search_esg_report_url] 跳過年報：{u}")
+                continue
+            # 接受：含 ESG/永續 關鍵字，或直接是 PDF 連結，或看起來是報告下載頁
+            is_esg = any(kw in u_lower for kw in ("sustain", "esg", "csr", "永續", "社會責任", "responsibility", "report"))
+            is_pdf = u_lower.endswith(".pdf") or "pdf" in u_lower
+            if is_esg or is_pdf:
+                candidates.append(u)
+
+        # 中文版排前，最多取 3 個
+        candidates.sort(key=_url_priority)
+        return candidates[:3]
+
+    # ── 第一段：google_search grounding（快速，最多重試 1 次）────
+    # 503 是 grounding 特有的高峰期過載，業界建議快速失敗而非長時間 retry
+    text = ""
+    for attempt in range(1, 3):   # 最多 2 次，失敗間隔 3s
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    tools=[types.Tool(google_search=types.GoogleSearch())]
+                ),
+            )
+            text = response.text or ""
+            print(f"[search_esg_report_url] [grounding] 回傳（{len(text)} chars）：{text[:200]}")
+            break
+        except Exception as e:
+            err_str = str(e)
+            is_retryable = any(c in err_str for c in ("500", "503", "INTERNAL", "UNAVAILABLE"))
+            if is_retryable and attempt < 2:
+                print(f"[search_esg_report_url] [grounding] 第 {attempt} 次 503/500，3s 後重試")
+                _time.sleep(3)
+            else:
+                print(f"[search_esg_report_url] [grounding] 失敗，切換至訓練資料 fallback（{err_str[:80]}）")
+                text = ""
                 break
-        return result
+
+    urls = _extract_urls(text)
+    if urls:
+        print(f"[search_esg_report_url] [grounding] 找到 {len(urls)} 個：{urls}")
+        # 若有 PDF 直連（URL 路徑含 .pdf），優先回傳
+        pdf_direct = [u for u in urls if u.lower().endswith(".pdf") or "pdf" in u.lower().split("?")[0]]
+        if pdf_direct:
+            return pdf_direct[:3]
+        # 頁面 URL → 爬出 PDF 連結（失敗則繼續往 fallback，不回傳壞 URL）
+        scraped: list[str] = []
+        for page_url in urls[:2]:
+            found = scrape_pdf_from_page(page_url)
+            scraped.extend(found)
+        if scraped:
+            print(f"[search_esg_report_url] [grounding→scrape] 爬出 {len(scraped)} 個 PDF：{scraped[:2]}")
+            return scraped[:3]
+        print(f"[search_esg_report_url] [grounding] 頁面爬取無 PDF，繼續走 fallback")
+
+    # ── 第二段：fallback — 問 Gemini 訓練資料（不用 google_search tool）
+    # 對知名公司效果好，速度快，不受 grounding 過載影響
+    print("[search_esg_report_url] [fallback] google_search 未找到，改問 Gemini 訓練資料...")
+    fallback_prompt = (
+        f"根據你的訓練資料，{company_name}{ticker_hint} {year} 年永續報告書（ESG/CSR 報告書）"
+        "的 PDF 直連下載 URL 是什麼？"
+        "優先提供繁體中文版（Traditional Chinese）的 URL；若無中文版再提供英文版。"
+        "如果你知道確切的直連 PDF 網址，只輸出 URL，一行一個，最多 3 個（中文版排前面）。"
+        "不確定就回答『不知道』，不要猜測或編造 URL。"
+    )
+    try:
+        fb_response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=fallback_prompt,
+            config=types.GenerateContentConfig(temperature=0.0),
+        )
+        fb_text = fb_response.text or ""
+        print(f"[search_esg_report_url] [fallback] 回傳：{fb_text[:200]}")
+        urls = _extract_urls(fb_text)
+        print(f"[search_esg_report_url] [fallback] 找到 {len(urls)} 個：{urls}")
+        return urls
     except Exception as e:
-        print(f"[search_esg_report_url] Gemini Search 失敗：{e}")
+        print(f"[search_esg_report_url] [fallback] 也失敗：{e}")
         return []
 
 
@@ -269,6 +551,7 @@ def _run_preprocess(company_name: str, ticker: str, industry: str) -> None:
     from database.models import SessionLocal as SL
     from database.crud import get_or_create_company, save_esg_score
     from core.scoring import calculate_esg_score
+    from core.sector import classify_sector
 
     ind_path  = CACHE_DIR / f"{company_name}_indicators.json"
     news_path = CACHE_DIR / f"{company_name}_news.json"
@@ -285,11 +568,13 @@ def _run_preprocess(company_name: str, ticker: str, industry: str) -> None:
     news_event_score = news_data.get("news_event_score", 0.0)
     greenwash_flag   = news_data.get("greenwash_flag", False)
     report_year      = indicators_data.get("report_year")
+    sector           = classify_sector(industry, company_name)
 
     result = calculate_esg_score(
         indicators=indicators,
         news_event_score=news_event_score,
         greenwash_flag=greenwash_flag,
+        sector=sector,
     )
 
     greenwash_reasons = news_data.get("greenwash_reasons", [])
@@ -319,6 +604,7 @@ def _run_preprocess(company_name: str, ticker: str, industry: str) -> None:
             reasoning=reasoning,
             breakdown=result["breakdown"],
             report_year=report_year,
+            sector_key=sector,
         )
         print(f"[preprocess] {company_name}：總分 {result['total_score']} 等級 {result['grade']}")
     finally:
@@ -395,10 +681,13 @@ async def run_analysis(
         else:
             # 最後才用 Gemini Search（自動流程）
             if company_name:
-                guessed = PDF_DIR / f"{company_name}_2023.pdf"
-                if guessed.exists():
-                    actual_pdf_path = guessed
-                    print(f"[pipeline] 找到既有 PDF：{guessed.name}")
+                # 支援任意年份：優先取最新的，再退回指定 year
+                existing = sorted(PDF_DIR.glob(f"{company_name}_*.pdf"))
+                if not existing:
+                    existing = list(PDF_DIR.glob(f"{company_name}_{year}.pdf"))
+                if existing:
+                    actual_pdf_path = existing[-1]
+                    print(f"[pipeline] 找到既有 PDF：{actual_pdf_path.name}")
 
             if actual_pdf_path is None and company_name:
                 dest = PDF_DIR / dest_name

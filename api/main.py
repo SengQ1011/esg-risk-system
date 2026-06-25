@@ -279,11 +279,14 @@ def stream_pdf(company_name: str, db: Session = Depends(get_db)):
     if not company:
         raise HTTPException(status_code=404, detail=f"找不到公司：{company_name}")
 
-    filename = f"{company.Name}_2023.pdf"
-    pdf_path = os.path.join(_PDF_DIR, filename)
-    if not os.path.exists(pdf_path):
+    # 支援任意年份（_2023 / _2024 / _2025 等）
+    import glob as _glob
+    candidates = sorted(_glob.glob(os.path.join(_PDF_DIR, f"{company.Name}_*.pdf")))
+    pdf_path = candidates[-1] if candidates else ""
+    filename  = os.path.basename(pdf_path) if pdf_path else ""
+
+    if not pdf_path or not os.path.exists(pdf_path):
         # Fallback：從 indicators cache 找原始上傳路徑
-        import glob as _glob
         cache_path = os.path.join(
             os.path.dirname(__file__), "..", "data", "cache",
             f"{company.Name}_indicators.json"
@@ -302,8 +305,133 @@ def stream_pdf(company_name: str, db: Session = Depends(get_db)):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 新 Endpoints：Job 系統 + 分析觸發
+# 新 Endpoints：PDF 搜尋預覽 + Job 系統 + 分析觸發
 # ═══════════════════════════════════════════════════════════════════════════════
+
+def _resolve_ticker(company: str, ticker: str) -> str:
+    """
+    若 ticker 為空，嘗試從 TWSE codeQuery API 以公司名稱查代號。
+    查詢失敗或無結果時靜默回傳空字串。
+    """
+    if ticker:
+        return ticker
+    try:
+        import requests as _req
+        r = _req.get(
+            "https://www.twse.com.tw/zh/api/codeQuery",
+            params={"query": company},
+            timeout=5,
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        if r.status_code == 200:
+            data = r.json()
+            suggestions = data.get("suggestions", [])
+            for item in suggestions:
+                # item 格式："2330\t台積電"
+                parts = str(item).split("\t")
+                if len(parts) >= 2 and parts[0].strip().isdigit():
+                    resolved = parts[0].strip()
+                    print(f"[resolve_ticker] {company} → {resolved}")
+                    return resolved
+    except Exception as e:
+        print(f"[resolve_ticker] 查詢失敗：{e}")
+    return ""
+
+
+@app.get("/api/search-pdf")
+def search_pdf(company: str, year: int = 2023, ticker: str = ""):
+    """
+    用 Gemini Search 搜尋公司 ESG 報告書的候選 PDF 連結，
+    回傳 URL 清單供前端讓用戶選擇預覽。不下載、不開 Job。
+    """
+    from api.analysis_pipeline import search_esg_report_url
+    import glob as _glob
+
+    # ticker 為空時嘗試從 TWSE 自動解析（讓 CGC 查詢能啟動）
+    resolved_ticker = _resolve_ticker(company, ticker)
+
+    # 先檢查本地是否已有（任意年份）
+    local_pdfs = sorted(_glob.glob(os.path.join(_PDF_DIR, f"{company}_*.pdf")))
+    local_urls = [
+        f"/api/pdf/{company}?local=1"   # 用既有 stream_pdf endpoint
+        for _ in local_pdfs[:1]
+    ]
+
+    # Gemini Search 找候選
+    remote_urls = search_esg_report_url(company, resolved_ticker, year)
+
+    candidates = []
+    if local_pdfs:
+        candidates.append({
+            "url": f"/api/proxy-pdf?path={os.path.basename(local_pdfs[-1])}",
+            "label": f"本地已存在 {os.path.basename(local_pdfs[-1])}",
+            "local": True,
+        })
+    for url in remote_urls:
+        candidates.append({"url": url, "label": url, "local": False})
+
+    hint = ""
+    if not candidates:
+        hint = f"找不到 {company} {year} 年永續報告書，可能原因：①報告書尚未發布 ②Gemini Search 暫時故障，請稍後重試或手動上傳 PDF"
+
+    return {"status": "success", "data": {"candidates": candidates, "hint": hint}}
+
+
+@app.get("/api/proxy-pdf")
+def proxy_pdf(url: str = "", path: str = ""):
+    """
+    代理下載外部 PDF 並以 application/pdf 串流回傳，讓前端繞過 CORS 限制預覽。
+    url：外部 HTTP URL；path：本地 pdfs/ 下的檔名（優先）。
+    """
+    from fastapi.responses import StreamingResponse
+    import requests as _req
+
+    if path:
+        # 本地檔案
+        local = os.path.join(_PDF_DIR, os.path.basename(path))  # basename 防路徑穿透
+        if not os.path.exists(local):
+            raise HTTPException(status_code=404, detail="本地 PDF 不存在")
+        def _iter_local():
+            with open(local, "rb") as f:
+                while chunk := f.read(65536):
+                    yield chunk
+        return StreamingResponse(_iter_local(), media_type="application/pdf")
+
+    if not url or not url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="無效的 URL")
+
+    try:
+        resp = _req.get(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "application/pdf,*/*",
+                "Referer": url,
+            },
+            timeout=20,
+            stream=True,
+            allow_redirects=True,
+        )
+        resp.raise_for_status()
+        content_type = resp.headers.get("content-type", "")
+        if "pdf" not in content_type and "octet-stream" not in content_type:
+            # 目標回傳的不是 PDF（可能是 HTML 錯誤頁或需要登入）
+            raise HTTPException(
+                status_code=422,
+                detail=f"目標回傳的不是 PDF（Content-Type: {content_type}）。網站可能有 bot 防護，請直接在新分頁開啟連結。",
+            )
+        return StreamingResponse(
+            resp.iter_content(65536),
+            media_type="application/pdf",
+            headers={"Content-Disposition": "inline", "X-Source-Url": url},
+        )
+    except HTTPException:
+        raise
+    except _req.exceptions.Timeout:
+        raise HTTPException(status_code=504, detail=f"下載逾時（20s），請直接在新分頁開啟連結。")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"無法下載 PDF（{type(e).__name__}），請直接在新分頁開啟連結。")
+
 
 @app.delete("/api/company/{company_name}")
 def remove_company(company_name: str, db: Session = Depends(get_db)):
