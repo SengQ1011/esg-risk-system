@@ -81,9 +81,17 @@ def _score_dimension(
             raw_value   = raw_indicator.get("value")
             source_page = raw_indicator.get("source_page")
             pdf_page    = raw_indicator.get("_pdf_page")   # 物理頁碼，PyMuPDF 確認
-            bbox        = raw_indicator.get("bbox")
             unit        = raw_indicator.get("unit")
             confidence  = raw_indicator.get("confidence", 1.0)
+            # bbox 可能是單一 [x0,y0,x1,y1] 或多個 [[x0,y0,x1,y1], ...]
+            # 統一正規化為 list of lists，方便前端迭代渲染
+            _raw_bbox = raw_indicator.get("bbox")
+            if _raw_bbox is None:
+                bbox = None
+            elif isinstance(_raw_bbox[0], (int, float)):
+                bbox = [_raw_bbox]          # 舊格式：升級為 list of lists
+            else:
+                bbox = _raw_bbox            # 新格式：已是 list of lists
         else:
             raw_value   = raw_indicator
             source_page = None
