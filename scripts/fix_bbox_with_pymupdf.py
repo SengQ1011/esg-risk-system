@@ -25,7 +25,16 @@ ROOT      = Path(__file__).parent.parent
 CACHE_DIR = ROOT / "data" / "cache"
 PDF_DIR   = ROOT / "data" / "pdfs"
 
-COMPANIES    = ["台達電", "中鋼", "南山人壽", "臺積電"]
+def _discover_companies() -> list[str]:
+    """自動從 cache 目錄找出所有有對應 PDF 的公司，不需要手動維護清單。"""
+    companies = []
+    for ind_path in sorted(CACHE_DIR.glob("*_indicators.json")):
+        name = ind_path.stem.replace("_indicators", "")
+        # 同時支援 _2023.pdf 和 _2024.pdf（如臺積電）
+        has_pdf = any((PDF_DIR / f"{name}_{y}.pdf").exists() for y in ("2023", "2024"))
+        if has_pdf:
+            companies.append(name)
+    return companies
 BOOLEAN_KEYS = {"has_sustainability_officer", "assurance"}
 
 RATIO_KEYS = {
@@ -100,6 +109,22 @@ def _best_hit(page: fitz.Page, hits: list) -> fitz.Rect | None:
     return scored[0]
 
 
+def _source_text_segments(source_text: str) -> list[str]:
+    """
+    從 source_text 提取可搜尋的子字串候選。
+    AI 的 source_text 有時包含 '/'、換行、省略號等，
+    先試完整字串，再試各分割段落（取最長、去掉太短的雜訊）。
+    """
+    import re
+    segs = [source_text]
+    # 以 '/'、'...'、'\n' 分割，取各段
+    for part in re.split(r'[/\n…]+', source_text):
+        part = part.strip()
+        if len(part) >= 4:   # 太短的片段容易誤匹配
+            segs.append(part)
+    return list(dict.fromkeys(segs))   # 保持順序去重
+
+
 def _search_on_page(
     page: fitz.Page,
     value: float | int,
@@ -110,18 +135,27 @@ def _search_on_page(
     h = page.rect.height
     is_ratio = key in RATIO_KEYS
 
-    # source_text（AI 回傳的原始字串）優先，再退回格式猜測
+    # value=0（或其他極常見的小整數）時，搜尋 "0" 會命中太多地方導致誤定位。
+    # 這種情況只用 source_text 搜尋，放棄數字猜測。
+    value_is_ambiguous = (value == int(value) and abs(value) < 5)
+
     candidates: list[str] = []
     if source_text:
-        candidates.append(source_text)
-    candidates.extend(_value_candidates(value, is_ratio=is_ratio))
+        candidates.extend(_source_text_segments(source_text))
+    if not value_is_ambiguous:
+        candidates.extend(_value_candidates(value, is_ratio=is_ratio))
 
     for candidate in candidates:
         hits = page.search_for(candidate, quads=False)
         if hits:
             r = _best_hit(page, hits)
             if r is None:
-                continue  # 全在頁首/尾邊距，跳過這個候選字串
+                continue
+            rel_w = (r.x1 - r.x0) / w
+            # 短候選字串（≤4 chars，如 "2.3"）極易命中不相關的子字串，要求更寬的 bbox
+            min_rel_w = 0.025 if len(candidate) <= 4 else 0.01
+            if rel_w < min_rel_w and not value_is_ambiguous:
+                continue
             return [
                 round(r.x0 / w, 4),
                 round(r.y0 / h, 4),
@@ -245,8 +279,10 @@ def fix_company(company: str) -> tuple[int, int, int]:
 
 def main() -> None:
     total_fixed = total_nf = total_sk = 0
+    companies = _discover_companies()
+    print(f"偵測到 {len(companies)} 家公司：{companies}")
 
-    for company in COMPANIES:
+    for company in companies:
         print(f"\n{'='*50}")
         print(f"  {company}")
         print(f"{'='*50}")
