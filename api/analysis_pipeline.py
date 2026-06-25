@@ -179,7 +179,7 @@ def download_pdf(url: str, dest: Path) -> bool:
 # ── AI 識別公司名稱 ────────────────────────────────────────────────────────────
 
 def identify_company_from_pdf(pdf_path: Path) -> dict | None:
-    """從 PDF 首頁識別公司名稱和 ticker（僅上傳 PDF 未提供名稱時用）。"""
+    """從 PDF 首頁識別公司名稱、ticker 和報告年份（僅上傳 PDF 未提供名稱時用）。"""
     import pathlib
     from google import genai
     from google.genai import types
@@ -192,8 +192,8 @@ def identify_company_from_pdf(pdf_path: Path) -> dict | None:
             model="gemini-2.5-flash",
             contents=[
                 uploaded,
-                "這是一份台灣上市公司的永續報告書，請從封面和前幾頁識別：公司名稱（繁體中文）和股票代號（4位數字）。"
-                '只回傳 JSON：{"company_name": "公司名", "ticker": "XXXX"}',
+                "這是一份台灣上市公司的永續報告書，請從封面和前幾頁識別：公司名稱（繁體中文）、股票代號（4位數字）、報告年份（西元年整數，例如 2023）。"
+                '只回傳 JSON：{"company_name": "公司名", "ticker": "XXXX", "report_year": 2023}',
             ],
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
@@ -434,6 +434,11 @@ async def run_analysis(
                 company_name = identified.get("company_name") or ""
                 if not ticker:
                     ticker = identified.get("ticker", "")
+                # PDF 封面辨識的年份比使用者選的更準確，直接採用
+                identified_year = identified.get("report_year")
+                if isinstance(identified_year, int) and 2000 <= identified_year <= 2100:
+                    year = identified_year
+                    print(f"[pipeline] 從 PDF 識別報告年份：{year}")
             if not company_name:
                 raise ValueError(
                     "無法從 PDF 封面辨識公司名稱，請返回並手動輸入公司名稱或股票代號。"
