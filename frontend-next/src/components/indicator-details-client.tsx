@@ -76,10 +76,9 @@ function TrendIcon({ score }: { score: number | null }) {
 interface Props {
   breakdown: ScoreBreakdown
   companyName: string
-  pageOffset: number
 }
 
-export function IndicatorDetailsClient({ breakdown, companyName, pageOffset }: Props) {
+export function IndicatorDetailsClient({ breakdown, companyName }: Props) {
   const [modal, setModal] = useState<ModalState>(CLOSED)
 
   const pdfUrl = `${BASE_URL}/api/pdf/${encodeURIComponent(companyName)}`
@@ -93,11 +92,10 @@ export function IndicatorDetailsClient({ breakdown, companyName, pageOffset }: P
   [breakdown])
 
   function openModal(item: IndicatorBreakdownItem) {
-    if (!item.source_page || item.missing || item.raw_value === false) return
-    const jumpPage = item.pdf_page ?? (item.source_page + pageOffset)
+    if (!item.pdf_page || item.missing || item.raw_value === false) return
     setModal({
       isOpen: true,
-      page: jumpPage,
+      page: item.pdf_page,
       bbox: item.bbox,
       label: INDICATOR_LABELS[item.key] ?? item.key,
       rawValue: item.raw_value != null ? String(item.raw_value) : null,
@@ -167,7 +165,7 @@ export function IndicatorDetailsClient({ breakdown, companyName, pageOffset }: P
                         <TableBody>
                           {items.map((item) => {
                             const label = INDICATOR_LABELS[item.key] ?? item.key
-                            const canClick = !!item.source_page && !item.missing && item.raw_value !== false
+                            const canClick = !!item.pdf_page && !item.missing && item.raw_value !== false
 
                             return (
                               <TableRow
@@ -211,7 +209,7 @@ export function IndicatorDetailsClient({ breakdown, companyName, pageOffset }: P
                                       className="inline-flex items-center gap-1 rounded-md border bg-card px-2 py-1 text-xs font-medium text-foreground transition-colors hover:bg-accent"
                                     >
                                       <FileText className="size-3" />
-                                      p.{item.source_page}
+                                      p.{item.pdf_page}
                                     </button>
                                   ) : (
                                     <span className="text-xs text-muted-foreground">—</span>

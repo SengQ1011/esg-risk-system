@@ -1,13 +1,13 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import { AlertTriangle, ArrowLeft, Building2, Calendar, ExternalLink, Leaf, Newspaper, Scale } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ArrowLeft, Building2, Calendar } from "lucide-react"
+import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { EsgRadarChartClient } from "@/components/esg-radar-chart-client"
 import { IndicatorDetailsClient } from "@/components/indicator-details-client"
+import { WarningListClient } from "@/components/warning-list-client"
 import { fetchCompanyDetail } from "@/lib/api"
-import type { CompanyDetail, GreenwashDetail, IndicatorBreakdownItem, NewsEvent, Warning } from "@/lib/types"
+import type { CompanyDetail, IndicatorBreakdownItem } from "@/lib/types"
 
 type Signal = "green" | "yellow" | "red"
 
@@ -92,134 +92,6 @@ function ScorecardHeader({ detail }: { detail: CompanyDetail }) {
   )
 }
 
-const severityConfig = {
-  high:   { label: "高", cls: "bg-red-50 text-red-700 ring-red-200",      bar: "bg-red-500" },
-  medium: { label: "中", cls: "bg-amber-50 text-amber-700 ring-amber-200", bar: "bg-amber-500" },
-  low:    { label: "低", cls: "bg-muted text-muted-foreground ring-border", bar: "bg-muted-foreground/40" },
-} as const
-
-function WarningList({
-  warnings, reasoning, newsEvents, greenwashDetails,
-}: {
-  warnings: Warning[]
-  reasoning: string | null
-  newsEvents: NewsEvent[]
-  greenwashDetails: GreenwashDetail[]
-}) {
-  const highCount = warnings.filter((w) => w.level === "high").length
-
-  // 合并高層警示 + 詳細佐證
-  const newsItems  = newsEvents.filter(
-    (e) => e.severity === "critical" || e.severity === "high" || e.severity === "medium"
-  )
-
-  const totalItems = warnings.length + newsItems.length + greenwashDetails.length
-  const hasMany    = totalItems > 3
-
-  return (
-    <Card className="flex flex-col">
-      <CardHeader>
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="size-4 text-red-600" />
-            <CardTitle className="text-base">風險警示清單</CardTitle>
-          </div>
-          <div className="flex items-center gap-2">
-            {highCount > 0 && (
-              <Badge variant="destructive" className="tabular-nums">{highCount} 項高風險</Badge>
-            )}
-            {totalItems > 0 && (
-              <span className="text-xs text-muted-foreground">共 {totalItems} 則</span>
-            )}
-          </div>
-        </div>
-        <CardDescription>負面新聞與漂綠爭議追蹤（含佐證鏈接）</CardDescription>
-      </CardHeader>
-      {/* 超過 3 則時固定高度並可捲動，底部漸層提示還有更多內容 */}
-      <div className={cn("relative flex-1", hasMany && "overflow-hidden")}>
-        <CardContent className={cn(
-          "space-y-2.5",
-          hasMany && "max-h-[380px] overflow-y-auto pb-8 scrollbar-thin"
-        )}>
-        {warnings.length === 0 && newsItems.length === 0 && greenwashDetails.length === 0 ? (
-          <p className="text-sm text-muted-foreground">目前無重大風險警示</p>
-        ) : null}
-
-        {/* 新聞事件（含鏈接） */}
-        {newsItems.map((e, i) => {
-          const sev = e.severity === "critical" || e.severity === "high"
-            ? severityConfig.high
-            : severityConfig.medium
-          return (
-            <div key={`news-${i}`} className="relative flex gap-3 rounded-lg border bg-card p-3">
-              <span className={cn("absolute inset-y-2 left-0 w-1 rounded-full", sev.bar)} />
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                <Newspaper className="size-4" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <Badge variant="outline" className={cn("h-5 px-1.5 text-[11px] font-medium ring-1 ring-inset", sev.cls)}>
-                    風險{sev.label}
-                  </Badge>
-                  <Badge variant="secondary" className="h-5 px-1.5 text-[11px] font-normal">{e.category}</Badge>
-                </div>
-                <p className="mt-1.5 text-pretty text-sm font-medium leading-snug">{e.title}</p>
-                <div className="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                  <span>{e.date}</span>
-                  {e.url && (
-                    <a
-                      href={e.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
-                    >
-                      查看來源 <ExternalLink className="size-3" />
-                    </a>
-                  )}
-                </div>
-              </div>
-            </div>
-          )
-        })}
-
-        {/* 漂綠矛盾（含 PDF 來源頁） */}
-        {greenwashDetails.map((g, i) => (
-          <div key={`gw-${i}`} className="relative flex gap-3 rounded-lg border bg-card p-3">
-            <span className="absolute inset-y-2 left-0 w-1 rounded-full bg-orange-500" />
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-              <Leaf className="size-4" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <Badge variant="outline" className="h-5 border-orange-200 bg-orange-50 px-1.5 text-[11px] font-medium text-orange-700 ring-1 ring-inset ring-orange-200">
-                  漂綠爭議
-                </Badge>
-              </div>
-              <p className="mt-1.5 text-pretty text-sm font-medium leading-snug">{g.description}</p>
-              {g.claim_quote && (
-                <p className="mt-1 border-l-2 border-orange-300 pl-2 text-xs italic text-muted-foreground">
-                  「{g.claim_quote}」
-                </p>
-              )}
-              {g.source_page && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  報告書第 {g.source_page} 頁
-                </p>
-              )}
-            </div>
-          </div>
-        ))}
-
-        {reasoning && <p className="mt-1 text-xs text-muted-foreground">{reasoning}</p>}
-        </CardContent>
-        {/* 底部漸層：提示使用者還有更多內容可捲動 */}
-        {hasMany && (
-          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-card to-transparent" />
-        )}
-      </div>
-    </Card>
-  )
-}
 
 interface PageProps {
   params: Promise<{ name: string }>
@@ -257,7 +129,7 @@ export default async function CompanyPage({ params }: PageProps) {
           eScore={score.e_score} sScore={score.s_score} gScore={score.g_score}
           eMissing={eMissing} sMissing={sMissing} gMissing={gMissing}
         />
-        <WarningList
+        <WarningListClient
           warnings={warnings}
           reasoning={reasoning}
           newsEvents={news_events ?? []}
@@ -268,7 +140,6 @@ export default async function CompanyPage({ params }: PageProps) {
       <IndicatorDetailsClient
         breakdown={breakdown}
         companyName={detail.company.name}
-        pageOffset={page_offset ?? 0}
       />
 
       <footer className="border-t pt-5 text-xs leading-relaxed text-muted-foreground">

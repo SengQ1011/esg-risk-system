@@ -55,22 +55,18 @@ const CLOSED_MODAL: ModalState = {
 interface BreakdownTableClientProps {
   items: IndicatorBreakdownItem[]
   companyName: string
-  pageOffset: number
 }
 
-export function BreakdownTableClient({ items, companyName, pageOffset }: BreakdownTableClientProps) {
+export function BreakdownTableClient({ items, companyName }: BreakdownTableClientProps) {
   const [modal, setModal] = useState<ModalState>(CLOSED_MODAL)
 
   const pdfUrl = `${BASE_URL}/api/pdf/${encodeURIComponent(companyName)}`
 
   const openModal = (item: IndicatorBreakdownItem) => {
-    if (!item.source_page || item.missing || item.raw_value === false) return
-    // pdf_page：PyMuPDF 直接確認的物理頁（最準確）
-    // fallback：印刷頁碼 + page_offset（不支援 2-up 的舊計算）
-    const jumpPage = item.pdf_page ?? (item.source_page + pageOffset)
+    if (!item.pdf_page || item.missing || item.raw_value === false) return
     setModal({
       isOpen: true,
-      page: jumpPage,
+      page: item.pdf_page,
       bbox: item.bbox,
       label: INDICATOR_LABELS[item.key] ?? item.key,
       rawValue: item.raw_value != null ? String(item.raw_value) : null,
@@ -94,7 +90,7 @@ export function BreakdownTableClient({ items, companyName, pageOffset }: Breakdo
             const label = INDICATOR_LABELS[item.key] ?? item.key
             // false = 「沒有設立」，沒有頁面可指向；null/0 照正常邏輯
             const isBooleanFalse = item.raw_value === false
-            const clickable = !!item.source_page && !item.missing && !isBooleanFalse
+            const clickable = !!item.pdf_page && !item.missing && !isBooleanFalse
 
             return (
               <tr

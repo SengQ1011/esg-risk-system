@@ -156,12 +156,13 @@ function CompanyCard({ c, onDelete }: { c: CompanySummary; onDelete: () => void 
 // ─────────────────────────────────────────────────────────────
 // AnalyzeForm — client-side search + upload
 // ─────────────────────────────────────────────────────────────
-const YEAR_OPTIONS = [2024, 2023, 2022, 2021]
+const CURRENT_YEAR = new Date().getFullYear()
+const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => CURRENT_YEAR - i)
 
 function AnalyzeForm() {
   const router  = useRouter()
   const [query, setQuery]       = useState("")
-  const [year,  setYear]        = useState(2023)
+  const [year,  setYear]        = useState(CURRENT_YEAR - 1)
   const [file,  setFile]        = useState<File | null>(null)
   const [reportUrl, setReportUrl] = useState("")
   const [showUrlInput, setShowUrlInput] = useState(false)
