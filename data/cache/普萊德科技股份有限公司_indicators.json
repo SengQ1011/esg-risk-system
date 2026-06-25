@@ -1,0 +1,397 @@
+{
+  "company_name": "普萊德科技股份有限公司",
+  "ticker": "6263",
+  "industry": "其他",
+  "report_year": 2025,
+  "report_title": "普萊德科技股份有限公司2025年永續報告書",
+  "indicators": {
+    "ghg_scope1": {
+      "value": 34.8365,
+      "source_text": "34.8365",
+      "unit": "公噸CO2e",
+      "source_page": 84,
+      "confidence": 0.95,
+      "_compact_page": 48,
+      "bbox": [
+        0.479,
+        0.391,
+        0.539,
+        0.405
+      ],
+      "_pdf_page": 85
+    },
+    "ghg_scope2": {
+      "value": 255.6768,
+      "source_text": "市場別:255.6768",
+      "unit": "公噸CO2e",
+      "source_page": 84,
+      "confidence": 0.95,
+      "_compact_page": 48,
+      "bbox": [
+        0.479,
+        0.441,
+        0.539,
+        0.455
+      ],
+      "_pdf_page": 85
+    },
+    "ghg_scope3": {
+      "value": 36272.2181,
+      "source_text": "2,247.8652, 4,149.3054, 29,875.0475",
+      "unit": "公噸CO2e",
+      "source_page": 84,
+      "confidence": 0.7,
+      "_compact_page": 48,
+      "bbox": null,
+      "_pdf_page": 85
+    },
+    "carbon_intensity": {
+      "value": 0.1542,
+      "source_text": "0.1542 公噸 CO₂e/新台幣百萬元",
+      "unit": "公噸CO2e/百萬元",
+      "source_page": 84,
+      "confidence": 0.95,
+      "_compact_page": 48,
+      "bbox": [
+        0.559,
+        0.499,
+        0.619,
+        0.513
+      ],
+      "_pdf_page": 85
+    },
+    "electricity": {
+      "value": 644031,
+      "source_text": "644,031",
+      "unit": "kWh",
+      "source_page": 88,
+      "confidence": 0.95,
+      "_compact_page": 52,
+      "bbox": [
+        0.359,
+        0.699,
+        0.419,
+        0.713
+      ],
+      "_pdf_page": 89
+    },
+    "renewable_ratio": {
+      "value": 16.2,
+      "source_text": "16.2%",
+      "unit": "%",
+      "source_page": 88,
+      "confidence": 0.95,
+      "_compact_page": 49,
+      "bbox": [
+        0.709,
+        0.809,
+        0.749,
+        0.823
+      ],
+      "_pdf_page": 86
+    },
+    "water": {
+      "value": 19.0,
+      "source_text": "19",
+      "unit": "立方公尺",
+      "source_page": 89,
+      "confidence": 0.95,
+      "_compact_page": 53,
+      "bbox": [
+        0.359,
+        0.609,
+        0.379,
+        0.623
+      ],
+      "_pdf_page": 90
+    },
+    "waste": {
+      "value": 3.055,
+      "source_text": "3.055",
+      "unit": "公噸",
+      "source_page": 89,
+      "confidence": 0.95,
+      "_compact_page": 53,
+      "bbox": [
+        0.359,
+        0.509,
+        0.409,
+        0.523
+      ],
+      "_pdf_page": 90
+    },
+    "injury_rate": {
+      "value": 0.0,
+      "source_text": "連續9年零職災",
+      "unit": "TRIR",
+      "source_page": 65,
+      "confidence": 0.95,
+      "_compact_page": 65,
+      "bbox": [
+        0.299,
+        0.409,
+        0.309,
+        0.423
+      ],
+      "_pdf_page": 114
+    },
+    "turnover": {
+      "value": null,
+      "source_text": null,
+      "unit": "%",
+      "source_page": 93,
+      "confidence": 0.0,
+      "_compact_page": null,
+      "bbox": null
+    },
+    "female_ratio": {
+      "value": 51.4,
+      "source_text": "女性員工佔全體員工51.4%",
+      "unit": "%",
+      "source_page": 93,
+      "confidence": 0.95,
+      "_compact_page": 59,
+      "bbox": [
+        0.509,
+        0.339,
+        0.559,
+        0.353
+      ],
+      "_pdf_page": 103
+    },
+    "female_mgmt_ratio": {
+      "value": 48.8,
+      "source_text": "女性48.8%",
+      "unit": "%",
+      "source_page": 93,
+      "confidence": 0.95,
+      "_compact_page": 3,
+      "bbox": [
+        0.309,
+        0.409,
+        0.369,
+        0.423
+      ],
+      "_pdf_page": 9
+    },
+    "training_hours": {
+      "value": 29.9,
+      "source_text": "29.9小時",
+      "unit": "小時/人/年",
+      "source_page": 103,
+      "confidence": 0.95,
+      "_compact_page": 61,
+      "bbox": [
+        0.359,
+        0.899,
+        0.399,
+        0.913
+      ],
+      "_pdf_page": 105
+    },
+    "independent_director_ratio": {
+      "value": 57.0,
+      "source_text": "四席獨立董事,佔比達57%",
+      "unit": "%",
+      "source_page": 13,
+      "confidence": 0.95,
+      "_compact_page": 17,
+      "bbox": [
+        0.759,
+        0.339,
+        0.809,
+        0.353
+      ],
+      "_pdf_page": 36
+    },
+    "female_director_ratio": {
+      "value": 43.0,
+      "source_text": "三席女性,佔比達43%",
+      "unit": "%",
+      "source_page": 35,
+      "confidence": 0.95,
+      "_compact_page": 17,
+      "bbox": [
+        0.759,
+        0.299,
+        0.809,
+        0.313
+      ],
+      "_pdf_page": 36
+    },
+    "has_sustainability_officer": {
+      "value": true,
+      "source_text": null,
+      "unit": "布林",
+      "source_page": 13,
+      "confidence": 0.95,
+      "_compact_page": 16,
+      "bbox": null,
+      "_pdf_page": 35
+    },
+    "assurance": {
+      "value": false,
+      "source_text": null,
+      "unit": "布林",
+      "source_page": 173,
+      "confidence": 0.0,
+      "_compact_page": null,
+      "bbox": null
+    },
+    "violations": {
+      "value": 0,
+      "source_text": "無違反 經濟法規及罰款事件",
+      "unit": "次",
+      "source_page": 49,
+      "confidence": 0.95,
+      "_compact_page": 34,
+      "bbox": [
+        0.899,
+        0.869,
+        0.909,
+        0.883
+      ],
+      "_pdf_page": 54
+    }
+  },
+  "greenwash_claims": [],
+  "_meta": {
+    "pipeline_version": "v2-hybrid",
+    "total_pdf_pages": 176,
+    "compact_pdf_pages": 72,
+    "page_offset": 1,
+    "compact_page_map": {
+      "1": 7,
+      "2": 8,
+      "3": 9,
+      "4": 17,
+      "5": 18,
+      "6": 19,
+      "7": 20,
+      "8": 21,
+      "9": 22,
+      "10": 23,
+      "11": 25,
+      "12": 26,
+      "13": 27,
+      "14": 28,
+      "15": 34,
+      "16": 35,
+      "17": 36,
+      "18": 37,
+      "19": 38,
+      "20": 39,
+      "21": 40,
+      "22": 41,
+      "23": 42,
+      "24": 43,
+      "25": 44,
+      "26": 45,
+      "27": 46,
+      "28": 47,
+      "29": 48,
+      "30": 49,
+      "31": 51,
+      "32": 52,
+      "33": 53,
+      "34": 54,
+      "35": 67,
+      "36": 68,
+      "37": 69,
+      "38": 70,
+      "39": 71,
+      "40": 72,
+      "41": 74,
+      "42": 75,
+      "43": 76,
+      "44": 81,
+      "45": 82,
+      "46": 83,
+      "47": 84,
+      "48": 85,
+      "49": 86,
+      "50": 87,
+      "51": 88,
+      "52": 89,
+      "53": 90,
+      "54": 91,
+      "55": 99,
+      "56": 100,
+      "57": 101,
+      "58": 102,
+      "59": 103,
+      "60": 104,
+      "61": 105,
+      "62": 106,
+      "63": 112,
+      "64": 113,
+      "65": 114,
+      "66": 139,
+      "67": 140,
+      "68": 141,
+      "69": 142,
+      "70": 146,
+      "71": 147,
+      "72": 148
+    },
+    "gri_page_map": {
+      "ghg_scope1": [
+        84
+      ],
+      "ghg_scope2": [
+        84
+      ],
+      "ghg_scope3": [
+        84
+      ],
+      "carbon_intensity": [
+        84
+      ],
+      "electricity": [
+        88
+      ],
+      "turnover": [
+        93
+      ],
+      "female_ratio": [
+        93,
+        102
+      ],
+      "female_mgmt_ratio": [
+        93,
+        102
+      ],
+      "training_hours": [
+        103
+      ],
+      "independent_director_ratio": [
+        13,
+        34
+      ],
+      "female_director_ratio": [
+        35
+      ],
+      "has_sustainability_officer": [
+        13,
+        34
+      ],
+      "assurance": [
+        173
+      ],
+      "violations": [
+        49
+      ],
+      "renewable_ratio": [
+        88
+      ],
+      "water": [
+        89
+      ],
+      "waste": [
+        89
+      ]
+    },
+    "indicators_found": 17,
+    "pdf_path": "C:\\Users\\QuzzS\\Desktop\\Code_114-2\\esg-risk-system\\data\\pdfs\\普萊德科技股份有限公司_2025.pdf"
+  }
+}

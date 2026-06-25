@@ -82,13 +82,8 @@
       "source_page": 55,
       "confidence": 0.95,
       "_compact_page": 6,
-      "bbox": [
-        0.575,
-        0.586,
-        0.5834,
-        0.5962
-      ],
-      "_pdf_page": 29
+      "bbox": null,
+      "_pdf_page": 31
     },
     "water": {
       "value": 26435000.0,

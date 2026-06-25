@@ -58,10 +58,10 @@
       "confidence": 0.95,
       "_compact_page": 7,
       "bbox": [
-        0.8904,
-        0.7312,
-        0.9132,
-        0.7454
+        0.1044,
+        0.2483,
+        0.1994,
+        0.266
       ],
       "_pdf_page": 51
     },
@@ -210,12 +210,7 @@
       "source_page": 75,
       "confidence": 0.95,
       "_compact_page": 15,
-      "bbox": [
-        0.6235,
-        0.8125,
-        0.63,
-        0.8301
-      ],
+      "bbox": null,
       "_pdf_page": 76
     },
     "has_sustainability_officer": {
@@ -243,12 +238,7 @@
       "source_page": 80,
       "confidence": 0.95,
       "_compact_page": 20,
-      "bbox": [
-        0.0259,
-        0.114,
-        0.0405,
-        0.1224
-      ],
+      "bbox": null,
       "_pdf_page": 81
     }
   },
