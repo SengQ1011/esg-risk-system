@@ -17,7 +17,7 @@ interface PdfViewerModalProps {
   onClose: () => void
   pdfUrl: string
   indicatorPage: number
-  bbox: [number, number, number, number] | null
+  bbox: [number, number, number, number][] | null  // list of bboxes，支援多個 highlight
   indicatorLabel: string
   rawValue: string | null
   unit: string | null
@@ -80,7 +80,9 @@ export function PdfViewerModal({
     if (currentPage !== indicatorPage) return
 
     const scrollEl = scrollAreaRef.current
-    const highlightCenterX = (bbox[0] + bbox[2]) / 2 * canvasDims.w
+    // 用第一個 bbox 的水平中心做橫向自動捲動
+    const b0 = bbox[0]
+    const highlightCenterX = (b0[0] + b0[2]) / 2 * canvasDims.w
     const containerLeft    = containerRef.current?.offsetLeft ?? 0
     const viewportHalf     = scrollEl.clientWidth / 2
     scrollEl.scrollLeft    = containerLeft + highlightCenterX - viewportHalf
@@ -103,6 +105,11 @@ export function PdfViewerModal({
   const zoomOut = useCallback(() => setZoomIdx((i) => Math.max(0, i - 1)), [])
 
   const showBbox = bbox && canvasDims && currentPage === indicatorPage
+
+  // DEBUG — 確認 bbox 格式正確，可在 console 看到
+  if (process.env.NODE_ENV === 'development' && bbox !== null) {
+    console.log('[PdfViewer] bbox:', JSON.stringify(bbox), 'showBbox:', !!showBbox, 'canvasDims:', canvasDims)
+  }
 
   if (!isOpen) return null
 
@@ -175,21 +182,22 @@ export function PdfViewerModal({
                 />
               </Document>
 
-              {/* bbox highlight overlay — 加 padding 避免截到數字邊緣 */}
+              {/* bbox highlight overlays — 支援多個獨立框（如 source_text 含多個數值） */}
               {showBbox && (() => {
-                const PAD_X = 4  // px，左右各加
-                const PAD_Y = 3  // px，上下各加
-                return (
+                const PAD_X = 4
+                const PAD_Y = 3
+                return bbox.map((b, i) => (
                   <div
+                    key={i}
                     className="pointer-events-none absolute bg-yellow-300/50"
                     style={{
-                      left:   bbox[0] * canvasDims.w - PAD_X,
-                      top:    bbox[1] * canvasDims.h - PAD_Y,
-                      width:  (bbox[2] - bbox[0]) * canvasDims.w + PAD_X * 2,
-                      height: (bbox[3] - bbox[1]) * canvasDims.h + PAD_Y * 2,
+                      left:   b[0] * canvasDims.w - PAD_X,
+                      top:    b[1] * canvasDims.h - PAD_Y,
+                      width:  (b[2] - b[0]) * canvasDims.w + PAD_X * 2,
+                      height: (b[3] - b[1]) * canvasDims.h + PAD_Y * 2,
                     }}
                   />
-                )
+                ))
               })()}
             </div>
           </div>

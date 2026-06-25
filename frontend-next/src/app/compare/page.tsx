@@ -150,15 +150,20 @@ export default async function ComparePage() {
       <div>
         <div className="flex items-center gap-2">
           <BarChart3 className="size-5 text-primary" />
-          <h1 className="text-2xl font-semibold tracking-tight">三家公司 ESG 比較</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">公司 ESG 比較</h1>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          台達電 · 中鋼 · 南山人壽 — 2023 年度永續報告書對比分析
+          {companyNames.join(' · ')} — 2023 年度永續報告書對比分析
         </p>
       </div>
 
       {/* Score cards */}
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+      <div className={cn(
+        "grid grid-cols-1 gap-5",
+        companies.length <= 2 ? "md:grid-cols-2" :
+        companies.length === 4 ? "md:grid-cols-2 lg:grid-cols-4" :
+        "md:grid-cols-3"
+      )}>
         {companies.map((c: DashboardCompany) => (
           <CompanyScoreCard key={c.name} c={c} />
         ))}
@@ -168,7 +173,7 @@ export default async function ComparePage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">E/S/G 三維雷達對比</CardTitle>
-          <CardDescription>三家公司各維度評分視覺化比較（滿分 100）</CardDescription>
+          <CardDescription>{companies.length} 家公司各維度評分視覺化比較（滿分 100）</CardDescription>
         </CardHeader>
         <CardContent>
           <CompareRadarChart data={radar_data} companies={companyNames} />

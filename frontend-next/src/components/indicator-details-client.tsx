@@ -51,7 +51,7 @@ const DIM_CONFIG = {
 interface ModalState {
   isOpen: boolean
   page: number
-  bbox: [number, number, number, number] | null
+  bbox: [number, number, number, number][] | null
   label: string
   rawValue: string | null
   unit: string | null

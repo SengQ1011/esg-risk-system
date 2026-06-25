@@ -37,7 +37,7 @@ const INDICATOR_LABELS: Record<string, string> = {
 interface ModalState {
   isOpen: boolean
   page: number
-  bbox: [number, number, number, number] | null
+  bbox: [number, number, number, number][] | null
   label: string
   rawValue: string | null
   unit: string | null

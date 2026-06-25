@@ -28,7 +28,7 @@ export function Navbar() {
               href="/compare"
               className="rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
-              三家比較
+              公司比較
             </Link>
           </nav>
           <Badge variant="outline" className="hidden font-normal sm:inline-flex">
