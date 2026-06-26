@@ -1,0 +1,394 @@
+{
+  "company_name": "台灣塑膠工業股份有限公司",
+  "ticker": "1301",
+  "industry": "其他",
+  "report_year": 2024,
+  "report_title": "台灣塑膠工業股份有限公司2024年永續報告書",
+  "indicators": {
+    "ghg_scope1": {
+      "value": 3454675.0,
+      "source_text": "3,454,675 噸 CO₂e",
+      "unit": "公噸CO2e",
+      "source_page": 161,
+      "confidence": 0.95,
+      "_compact_page": 77,
+      "bbox": [
+        0.4506,
+        0.3619,
+        0.5112,
+        0.3748
+      ],
+      "_pdf_page": 169
+    },
+    "ghg_scope2": {
+      "value": 4095796.0,
+      "source_text": "4,095,796 噸 CO₂e",
+      "unit": "公噸CO2e",
+      "source_page": 161,
+      "confidence": 0.95,
+      "_compact_page": 77,
+      "bbox": [
+        0.4506,
+        0.3861,
+        0.5112,
+        0.3989
+      ],
+      "_pdf_page": 169
+    },
+    "ghg_scope3": {
+      "value": 12023680.0,
+      "source_text": "12,023,680 噸 CO₂e",
+      "unit": "公噸CO2e",
+      "source_page": 78,
+      "confidence": 0.95,
+      "_compact_page": 32,
+      "bbox": [
+        0.7144,
+        0.3454,
+        0.779,
+        0.3562
+      ],
+      "_pdf_page": 79
+    },
+    "carbon_intensity": {
+      "value": 51.7,
+      "source_text": "51.70",
+      "unit": "公噸CO2e/百萬元",
+      "source_page": 168,
+      "confidence": 0.95,
+      "_compact_page": 77,
+      "bbox": [
+        0.6305,
+        0.3861,
+        0.6647,
+        0.3989
+      ],
+      "_pdf_page": 169
+    },
+    "electricity": {
+      "value": 6080200000.0,
+      "source_text": "外購電力 15,978,736 千兆焦耳; 耗用電網用電量的百分比 73%",
+      "unit": "kWh",
+      "source_page": 161,
+      "confidence": 0.95,
+      "_compact_page": 37,
+      "bbox": null,
+      "_pdf_page": 84
+    },
+    "renewable_ratio": {
+      "value": 0.027,
+      "source_text": "0.027%",
+      "unit": "%",
+      "source_page": 161,
+      "confidence": 0.95,
+      "_compact_page": 71,
+      "bbox": [
+        0.7182,
+        0.8612,
+        0.7485,
+        0.8726
+      ],
+      "_pdf_page": 162
+    },
+    "water": {
+      "value": 34344450.0,
+      "source_text": "34,344.45 百萬公升",
+      "unit": "立方公尺",
+      "source_page": 162,
+      "confidence": 0.95,
+      "_compact_page": 72,
+      "bbox": [
+        0.7064,
+        0.1632,
+        0.7602,
+        0.1746
+      ],
+      "_pdf_page": 163
+    },
+    "waste": {
+      "value": 191535.0,
+      "source_text": "191,535 噸",
+      "unit": "公噸",
+      "source_page": 162,
+      "confidence": 0.95,
+      "_compact_page": 50,
+      "bbox": [
+        0.3643,
+        0.3079,
+        0.4195,
+        0.3222
+      ],
+      "_pdf_page": 100
+    },
+    "injury_rate": {
+      "value": 0.42,
+      "source_text": "0.42",
+      "unit": "TRIR",
+      "source_page": 163,
+      "confidence": 0.95,
+      "_compact_page": 73,
+      "bbox": null,
+      "_pdf_page": 164
+    },
+    "turnover": {
+      "value": 4.3,
+      "source_text": "4.3%",
+      "unit": "%",
+      "source_page": 160,
+      "confidence": 0.95,
+      "_compact_page": 57,
+      "bbox": [
+        0.3554,
+        0.863,
+        0.3894,
+        0.8833
+      ],
+      "_pdf_page": 113
+    },
+    "female_ratio": {
+      "value": 9.63,
+      "source_text": "女性 585; 永久聘僱員工人數 6,076",
+      "unit": "%",
+      "source_page": 55,
+      "confidence": 0.95,
+      "_compact_page": 55,
+      "bbox": null,
+      "_pdf_page": 110
+    },
+    "female_mgmt_ratio": {
+      "value": 8.0,
+      "source_text": "占二級主管以上總人數8%",
+      "unit": "%",
+      "source_page": 58,
+      "confidence": 0.95,
+      "_compact_page": 58,
+      "bbox": [
+        0.3947,
+        0.1778,
+        0.4241,
+        0.1886
+      ],
+      "_pdf_page": 116
+    },
+    "training_hours": {
+      "value": 40.6,
+      "source_text": "40.6",
+      "unit": "小時/人/年",
+      "source_page": 160,
+      "confidence": 0.95,
+      "_compact_page": 59,
+      "bbox": [
+        0.8534,
+        0.6655,
+        0.8798,
+        0.6784
+      ],
+      "_pdf_page": 122
+    },
+    "independent_director_ratio": {
+      "value": 33.3,
+      "source_text": "33.3%",
+      "unit": "%",
+      "source_page": 35,
+      "confidence": 0.95,
+      "_compact_page": 10,
+      "bbox": [
+        0.1892,
+        0.2893,
+        0.2353,
+        0.3099
+      ],
+      "_pdf_page": 41
+    },
+    "female_director_ratio": {
+      "value": 16.67,
+      "source_text": "16.67%",
+      "unit": "%",
+      "source_page": 40,
+      "confidence": 0.95,
+      "_compact_page": 10,
+      "bbox": [
+        0.3659,
+        0.2893,
+        0.4252,
+        0.3099
+      ],
+      "_pdf_page": 41
+    },
+    "has_sustainability_officer": {
+      "value": true,
+      "source_text": null,
+      "unit": "布林",
+      "source_page": 167,
+      "confidence": 0.95,
+      "_compact_page": 13,
+      "bbox": null,
+      "_pdf_page": 44
+    },
+    "assurance": {
+      "value": true,
+      "source_text": null,
+      "unit": "布林",
+      "source_page": 170,
+      "confidence": 0.95,
+      "_compact_page": 78,
+      "bbox": null,
+      "_pdf_page": 170
+    },
+    "violations": {
+      "value": 0.0,
+      "source_text": null,
+      "unit": "次",
+      "source_page": 163,
+      "confidence": 0.95,
+      "_compact_page": 73,
+      "bbox": null,
+      "_pdf_page": 164
+    }
+  },
+  "greenwash_claims": [],
+  "_meta": {
+    "pipeline_version": "v2-hybrid",
+    "total_pdf_pages": 173,
+    "compact_pdf_pages": 79,
+    "page_offset": 0,
+    "compact_page_map": {
+      "1": 15,
+      "2": 16,
+      "3": 17,
+      "4": 33,
+      "5": 34,
+      "6": 35,
+      "7": 36,
+      "8": 39,
+      "9": 40,
+      "10": 41,
+      "11": 42,
+      "12": 43,
+      "13": 44,
+      "14": 45,
+      "15": 59,
+      "16": 60,
+      "17": 61,
+      "18": 62,
+      "19": 63,
+      "20": 64,
+      "21": 65,
+      "22": 66,
+      "23": 69,
+      "24": 70,
+      "25": 71,
+      "26": 73,
+      "27": 74,
+      "28": 75,
+      "29": 76,
+      "30": 77,
+      "31": 78,
+      "32": 79,
+      "33": 80,
+      "34": 81,
+      "35": 82,
+      "36": 83,
+      "37": 84,
+      "38": 85,
+      "39": 86,
+      "40": 87,
+      "41": 91,
+      "42": 92,
+      "43": 93,
+      "44": 94,
+      "45": 95,
+      "46": 96,
+      "47": 97,
+      "48": 98,
+      "49": 99,
+      "50": 100,
+      "51": 101,
+      "52": 102,
+      "53": 108,
+      "54": 109,
+      "55": 110,
+      "56": 112,
+      "57": 113,
+      "58": 114,
+      "59": 122,
+      "60": 123,
+      "61": 124,
+      "62": 135,
+      "63": 136,
+      "64": 137,
+      "65": 143,
+      "66": 144,
+      "67": 145,
+      "68": 159,
+      "69": 160,
+      "70": 161,
+      "71": 162,
+      "72": 163,
+      "73": 164,
+      "74": 166,
+      "75": 167,
+      "76": 168,
+      "77": 169,
+      "78": 170,
+      "79": 171
+    },
+    "gri_page_map": {
+      "ghg_scope1": [
+        161,
+        168
+      ],
+      "ghg_scope2": [
+        161,
+        168
+      ],
+      "carbon_intensity": [
+        168
+      ],
+      "electricity": [
+        161
+      ],
+      "renewable_ratio": [
+        161
+      ],
+      "water": [
+        162
+      ],
+      "waste": [
+        162
+      ],
+      "injury_rate": [
+        163
+      ],
+      "turnover": [
+        160
+      ],
+      "training_hours": [
+        160
+      ],
+      "has_sustainability_officer": [
+        167
+      ],
+      "assurance": [
+        170
+      ],
+      "violations": [
+        163
+      ],
+      "ghg_scope3": [
+        78,
+        79
+      ],
+      "independent_director_ratio": [
+        35,
+        40
+      ],
+      "female_director_ratio": [
+        40,
+        41
+      ]
+    },
+    "indicators_found": 18,
+    "pdf_path": "C:\\Users\\QuzzS\\Desktop\\Code_114-2\\esg-risk-system\\data\\pdfs\\台灣塑膠工業股份有限公司_2024.pdf"
+  }
+}
