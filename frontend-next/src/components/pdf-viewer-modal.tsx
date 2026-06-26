@@ -106,11 +106,6 @@ export function PdfViewerModal({
 
   const showBbox = bbox && canvasDims && currentPage === indicatorPage
 
-  // DEBUG — 確認 bbox 格式正確，可在 console 看到
-  if (process.env.NODE_ENV === 'development' && bbox !== null) {
-    console.log('[PdfViewer] bbox:', JSON.stringify(bbox), 'showBbox:', !!showBbox, 'canvasDims:', canvasDims)
-  }
-
   if (!isOpen) return null
 
   return (

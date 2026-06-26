@@ -20,6 +20,7 @@ import json
 import os
 import re
 import sys
+import threading
 import traceback
 from pathlib import Path
 from functools import partial
@@ -39,6 +40,9 @@ LOG_DIR   = _ROOT / "data" / "logs"
 PDF_DIR.mkdir(parents=True, exist_ok=True)
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+# M1 腳本含 module-level global（PDF_DIR），多 job 並行時需序列化此區段
+_m1_lock = threading.Lock()
 
 
 # ── DB session helper（同步，在 executor 中使用）──────────────────────────────
@@ -516,13 +520,15 @@ def _run_m1(company_name: str, ticker: str, industry: str, pdf_path: Path, year:
         shutil.copy2(str(pdf_path), str(target))
 
     # patch PDF_DIR reference（M1 腳本的 PDF_DIR 是模組級常數）
+    # 用 _m1_lock 確保多 job 並行時不會互相覆蓋 global state
     import scripts.extract_indicators_m1 as m1_mod
-    original_pdf_dir = m1_mod.PDF_DIR
-    m1_mod.PDF_DIR = PDF_DIR
-    try:
-        return process_company(info, force_all=False, force_step=None)
-    finally:
-        m1_mod.PDF_DIR = original_pdf_dir
+    with _m1_lock:
+        original_pdf_dir = m1_mod.PDF_DIR
+        m1_mod.PDF_DIR = PDF_DIR
+        try:
+            return process_company(info, force_all=False, force_step=None)
+        finally:
+            m1_mod.PDF_DIR = original_pdf_dir
 
 
 def _run_fix_bbox(company_name: str) -> None:

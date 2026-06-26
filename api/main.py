@@ -38,6 +38,9 @@ app.add_middleware(
     allow_credentials=False,  # credentials=True 與 origins=["*"] 互斥，會讓 header 消失
     allow_methods=["*"],
     allow_headers=["*"],
+    # 讓跨來源 JS 能讀到 range request 相關 header
+    # pdfjs 靠 Accept-Ranges 判斷是否啟用 range request；看不到就退回下載整份 PDF
+    expose_headers=["Accept-Ranges", "Content-Range", "Content-Length"],
 )
 
 _PDF_DIR   = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "pdfs"))
@@ -301,7 +304,12 @@ def stream_pdf(company_name: str, db: Session = Depends(get_db)):
         if not os.path.exists(pdf_path):
             raise HTTPException(status_code=404, detail=f"PDF 檔案不存在：{filename}")
 
-    return FileResponse(pdf_path, media_type="application/pdf", filename=filename)
+    return FileResponse(
+        pdf_path,
+        media_type="application/pdf",
+        filename=filename,
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

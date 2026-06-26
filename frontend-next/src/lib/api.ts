@@ -81,8 +81,39 @@ export async function analyzeCompany(
   return json.data as AnalyzeResponse
 }
 
-/** localStorage key for PiP active job */
+/** localStorage key for PiP active jobs (JSON array of PipJob) */
 export const PIP_KEY = "esg_active_job"
+
+export interface PipJob {
+  jobId: string
+  companyName: string
+}
+
+export function getPipJobs(): PipJob[] {
+  try {
+    const raw = localStorage.getItem(PIP_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    // backward compat: single object → wrap in array
+    return Array.isArray(parsed) ? parsed : [parsed]
+  } catch {
+    return []
+  }
+}
+
+export function addPipJob(job: PipJob): void {
+  const jobs = getPipJobs().filter(j => j.jobId !== job.jobId)
+  localStorage.setItem(PIP_KEY, JSON.stringify([...jobs, job]))
+}
+
+export function removePipJob(jobId: string): void {
+  const jobs = getPipJobs().filter(j => j.jobId !== jobId)
+  if (jobs.length === 0) {
+    localStorage.removeItem(PIP_KEY)
+  } else {
+    localStorage.setItem(PIP_KEY, JSON.stringify(jobs))
+  }
+}
 
 /** DELETE /api/job/{jobId} — cancel analysis */
 export async function cancelJob(jobId: string): Promise<void> {

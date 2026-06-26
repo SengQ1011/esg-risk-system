@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { fetchJobStatus, getWsUrl, cancelJob, PIP_KEY } from "@/lib/api"
+import { fetchJobStatus, getWsUrl, cancelJob, addPipJob, removePipJob } from "@/lib/api"
 import type { JobStatus } from "@/lib/types"
 
 // ─────────────────────────────────────────────────────────────
@@ -278,8 +278,7 @@ export function JobProgressClient({ jobId, initialCompanyName }: Props) {
     setCancelling(true)
     try {
       await cancelJob(jobId)
-      // 清除 PiP localStorage
-      localStorage.removeItem(PIP_KEY)
+      removePipJob(jobId)
       doneRef.current = true
       setCancelled(true)
     } catch {
@@ -289,10 +288,10 @@ export function JobProgressClient({ jobId, initialCompanyName }: Props) {
 
   // 最小化（PiP）
   function handleMinimize() {
-    localStorage.setItem(PIP_KEY, JSON.stringify({
+    addPipJob({
       jobId,
       companyName: companyNameRef.current || initialCompanyName || "",
-    }))
+    })
     router.push("/")
   }
 
