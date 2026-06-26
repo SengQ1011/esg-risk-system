@@ -45,6 +45,7 @@ class ESGScore(Base):
 
     Reasoning = Column(Text, nullable=True)
     Breakdown = Column(Text, nullable=True)     # JSON 字串，存各指標貢獻
+    SectorKey = Column(String(50), nullable=True, default="default")  # 產業分類
 
     ReportYear = Column(Integer, nullable=True)
     Timestamp = Column(DateTime, default=datetime.utcnow)
@@ -67,3 +68,17 @@ class Job(Base):
 
 
 Base.metadata.create_all(bind=engine)
+
+
+def run_migrations() -> None:
+    """SQLite 不支援 ALTER TABLE 自動新增欄位，手動補齊。"""
+    from sqlalchemy import text, inspect
+    with engine.connect() as conn:
+        inspector = inspect(engine)
+        existing = {c["name"] for c in inspector.get_columns("ESG_Scores")}
+        if "SectorKey" not in existing:
+            conn.execute(text("ALTER TABLE ESG_Scores ADD COLUMN SectorKey VARCHAR(50) DEFAULT 'default'"))
+            conn.commit()
+
+
+run_migrations()

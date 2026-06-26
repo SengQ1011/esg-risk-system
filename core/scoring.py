@@ -38,6 +38,14 @@ def _load_config() -> dict:
         return yaml.safe_load(f)
 
 
+def _get_sector_norm(cfg: dict, sector: str) -> dict:
+    """全域 normalization + 產業覆寫合併。僅影響有列出的指標。"""
+    norm = dict(cfg["normalization"])
+    overrides = cfg.get("sector_normalization", {}).get(sector, {})
+    norm.update(overrides)
+    return norm
+
+
 def _normalize(key: str, value: float | None, norm_cfg: dict) -> float | None:
     if value is None:
         return None
@@ -133,6 +141,7 @@ def calculate_esg_score(
     indicators: dict,
     news_event_score: float = 0.0,
     greenwash_flag: bool = False,
+    sector: str = "default",
 ) -> dict:
     """
     主入口。
@@ -156,7 +165,7 @@ def calculate_esg_score(
         }
     """
     cfg = _load_config()
-    norm_cfg = cfg["normalization"]
+    norm_cfg = _get_sector_norm(cfg, sector)
     event_cfg = cfg["events"]
     dim_weights = cfg["dimensions"]
 
@@ -190,6 +199,7 @@ def calculate_esg_score(
         "g_score": g_score,
         "total_score": round(total_score, 2),
         "grade": grade,
+        "sector": sector,
         "news_event_score": news_event_score,
         "greenwash_flag": greenwash_flag,
         "penalties": {

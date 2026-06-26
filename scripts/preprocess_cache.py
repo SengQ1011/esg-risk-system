@@ -20,6 +20,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 from database.models import SessionLocal, Base, engine
 from database.crud import get_or_create_company, save_esg_score
 from core.scoring import calculate_esg_score
+from core.sector import classify_sector
 
 CACHE_DIR = Path(__file__).parent.parent / "data" / "cache"
 
@@ -65,11 +66,13 @@ def process_company(db, company_info: dict) -> None:
     news_event_score = news_data.get("news_event_score", 0.0)
     greenwash_flag = news_data.get("greenwash_flag", False)
     report_year = indicators_data.get("report_year")
+    sector = classify_sector(company_info["industry"], name)
 
     result = calculate_esg_score(
         indicators=indicators,
         news_event_score=news_event_score,
         greenwash_flag=greenwash_flag,
+        sector=sector,
     )
 
     greenwash_reasons = news_data.get("greenwash_reasons", [])
@@ -104,8 +107,10 @@ def process_company(db, company_info: dict) -> None:
         reasoning=reasoning,
         breakdown=result["breakdown"],
         report_year=report_year,
+        sector_key=sector,
     )
 
+    print(f"  Sector: {sector}")
     print(f"  E: {result['e_score']:.1f}  S: {result['s_score']:.1f}  G: {result['g_score']:.1f}")
     print(f"  總分: {result['total_score']:.1f}  等級: {result['grade']}")
     print(f"  扣分: {result['penalties']['total_penalty']:.2f}（新聞 {result['penalties']['news_penalty']:.2f} + 漂綠 {result['penalties']['greenwash_penalty']:.2f}）")

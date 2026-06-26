@@ -36,6 +36,7 @@ def save_esg_score(
     reasoning: str = "",
     breakdown: dict = None,
     report_year: int = None,
+    sector_key: str = "default",
 ) -> ESGScore:
     score = ESGScore(
         CompanyID=company_id,
@@ -49,6 +50,7 @@ def save_esg_score(
         Reasoning=reasoning,
         Breakdown=json.dumps(breakdown, ensure_ascii=False) if breakdown else None,
         ReportYear=report_year,
+        SectorKey=sector_key,
     )
     db.add(score)
     db.commit()
