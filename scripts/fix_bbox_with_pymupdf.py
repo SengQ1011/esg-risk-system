@@ -25,7 +25,14 @@ ROOT      = Path(__file__).parent.parent
 CACHE_DIR = ROOT / "data" / "cache"
 PDF_DIR   = ROOT / "data" / "pdfs"
 
-COMPANIES    = ["台達電", "中鋼", "南山人壽", "臺積電"]
+def _discover_companies() -> list[str]:
+    """自動從 cache 目錄找出所有有對應 PDF 的公司，不需要手動維護清單。"""
+    companies = []
+    for ind_path in sorted(CACHE_DIR.glob("*_indicators.json")):
+        name = ind_path.stem.replace("_indicators", "")
+        if list(PDF_DIR.glob(f"{name}_*.pdf")):   # 支援任意年份
+            companies.append(name)
+    return companies
 BOOLEAN_KEYS = {"has_sustainability_officer", "assurance"}
 
 RATIO_KEYS = {
@@ -100,6 +107,67 @@ def _best_hit(page: fitz.Page, hits: list) -> fitz.Rect | None:
     return scored[0]
 
 
+def _source_text_segments(source_text: str) -> list[str]:
+    """
+    從 source_text 提取可搜尋的子字串候選。
+    AI 的 source_text 有時包含 '/'、換行、省略號等，
+    先試完整字串，再試各分割段落（取最長、去掉太短的雜訊）。
+    另外嘗試冒號標準化：AI 可能用半形 ':' 而 PDF 用全形 '：'，或反之。
+    """
+    import re
+    segs = [source_text]
+    # 冒號互換變體（半形 ↔ 全形），讓「市場別:255」也能匹配「市場別：255」
+    if ":" in source_text:
+        segs.append(source_text.replace(":", "："))
+    if "：" in source_text:
+        segs.append(source_text.replace("：", ":"))
+    # 以 '/'、'...'、'\n' 分割，取各段
+    for part in re.split(r'[/\n…]+', source_text):
+        part = part.strip()
+        if len(part) >= 4:   # 太短的片段容易誤匹配
+            segs.append(part)
+    return list(dict.fromkeys(segs))   # 保持順序去重
+
+
+def _merge_bboxes_on_page(
+    page: fitz.Page,
+    parts: list[str],
+) -> fitz.Rect | None:
+    """
+    分別搜尋每個 part，找出 y 位置最接近的一組命中，合併 Rect。
+    用於 "市場別:255.6768" 這類 label:value 的 source_text，
+    讓 highlight 同時框住 label 和數值。
+    策略：以最後一個 part（通常是數值）為錨點，找 y 最近的其他 parts。
+    """
+    all_hits: list[list[fitz.Rect]] = []
+    for part in parts:
+        hits = page.search_for(part, quads=False)
+        if not hits:
+            return None
+        all_hits.append(list(hits))
+
+    # 以最後一個 part 的第一個命中為錨點（數值通常唯一）
+    anchor = all_hits[-1][0]
+    anchor_y = (anchor.y0 + anchor.y1) / 2
+
+    # 其他 parts 各取 y 最接近錨點的命中
+    best_rects: list[fitz.Rect] = []
+    for hits in all_hits[:-1]:
+        best = min(hits, key=lambda r: abs((r.y0 + r.y1) / 2 - anchor_y))
+        if abs((best.y0 + best.y1) / 2 - anchor_y) > 30:
+            return None   # 差太多，視為不同行
+        best_rects.append(best)
+    best_rects.append(anchor)
+
+    merged = fitz.Rect(
+        min(r.x0 for r in best_rects),
+        min(r.y0 for r in best_rects),
+        max(r.x1 for r in best_rects),
+        max(r.y1 for r in best_rects),
+    )
+    return merged
+
+
 def _search_on_page(
     page: fitz.Page,
     value: float | int,
@@ -110,18 +178,42 @@ def _search_on_page(
     h = page.rect.height
     is_ratio = key in RATIO_KEYS
 
-    # source_text（AI 回傳的原始字串）優先，再退回格式猜測
+    # value=0（或其他極常見的小整數）時，搜尋 "0" 會命中太多地方導致誤定位。
+    # 這種情況只用 source_text 搜尋，放棄數字猜測。
+    value_is_ambiguous = (value == int(value) and abs(value) < 5)
+
+    # source_text 含冒號（如 "市場別:255.6768"）→ 分段搜尋再合併 bbox
+    # 讓 highlight 同時涵蓋 label 和數值，而非只框其中一個
+    if source_text and (":" in source_text or "：" in source_text):
+        import re as _re
+        parts = [p.strip() for p in _re.split(r"[:：]", source_text) if p.strip() and len(p.strip()) >= 2]
+        if len(parts) >= 2:
+            merged = _merge_bboxes_on_page(page, parts)
+            if merged is not None:
+                return [
+                    round(merged.x0 / w, 4),
+                    round(merged.y0 / h, 4),
+                    round(merged.x1 / w, 4),
+                    round(merged.y1 / h, 4),
+                ]
+
     candidates: list[str] = []
     if source_text:
-        candidates.append(source_text)
-    candidates.extend(_value_candidates(value, is_ratio=is_ratio))
+        candidates.extend(_source_text_segments(source_text))
+    if not value_is_ambiguous:
+        candidates.extend(_value_candidates(value, is_ratio=is_ratio))
 
     for candidate in candidates:
         hits = page.search_for(candidate, quads=False)
         if hits:
             r = _best_hit(page, hits)
             if r is None:
-                continue  # 全在頁首/尾邊距，跳過這個候選字串
+                continue
+            rel_w = (r.x1 - r.x0) / w
+            # 短候選字串（≤4 chars，如 "2.3"）極易命中不相關的子字串，要求更寬的 bbox
+            min_rel_w = 0.025 if len(candidate) <= 4 else 0.01
+            if rel_w < min_rel_w and not value_is_ambiguous:
+                continue
             return [
                 round(r.x0 / w, 4),
                 round(r.y0 / h, 4),
@@ -148,14 +240,37 @@ def _search_nearby(
     return None, pdf_idx
 
 
+def _search_multi_values(
+    page: fitz.Page,
+    value_strings: list[str],
+) -> list[list[float]]:
+    """
+    對多個獨立數值字串各自搜尋，回傳各命中的 bbox 清單（可能不足 len(value_strings)）。
+    用於 source_text 是逗號分隔多值的情況，例如 "2,247.8652, 4,149.3054, 29,875.0475"。
+    """
+    w, h = page.rect.width, page.rect.height
+    results: list[list[float]] = []
+    for vs in value_strings:
+        hits = page.search_for(vs, quads=False)
+        if hits:
+            r = _best_hit(page, hits)
+            if r is not None:
+                results.append([
+                    round(r.x0 / w, 4), round(r.y0 / h, 4),
+                    round(r.x1 / w, 4), round(r.y1 / h, 4),
+                ])
+    return results
+
+
 def fix_company(company: str) -> tuple[int, int, int]:
     """回傳 (fixed, not_found, skipped)。"""
     cache_path = CACHE_DIR / f"{company}_indicators.json"
-    pdf_path   = PDF_DIR   / f"{company}_2023.pdf"
-
-    if not pdf_path.exists():
-        print(f"  [!] PDF 不存在：{pdf_path}")
+    # 支援任意年份（_2023 / _2024 / _2025 等），取最新的
+    pdf_candidates = sorted(PDF_DIR.glob(f"{company}_*.pdf"))
+    if not pdf_candidates:
+        print(f"  [!] PDF 不存在：{company}_*.pdf")
         return 0, 0, 0
+    pdf_path = pdf_candidates[-1]  # 取最新年份
 
     with open(cache_path, encoding="utf-8") as f:
         data = json.load(f)
@@ -216,6 +331,43 @@ def fix_company(company: str) -> tuple[int, int, int]:
 
         correct_pdf_page = physical_0idx_to_pdf_page(pdf_idx)
 
+        # ── 多值 source_text：各別搜尋，回傳多個 bbox ────────────────
+        # 格式判斷：source_text 含 ", " 且拆分後有 ≥2 個看起來像數字的片段
+        import re as _re
+        multi_val_parts: list[str] = []
+        if source_text:
+            # 從 source_text 提取所有看起來像數值的字串（含千分位）
+            # 不用 split，避免把千分位逗號（"16,809,455"）或中文標籤誤處理
+            extracted = _re.findall(r"\d[\d,]*\.?\d*", source_text)
+            # 過濾太短（< 4 chars）避免誤抓單個數字，且至少要有 2 個才算多值
+            candidates_nums = [n for n in extracted if len(n) >= 4]
+            if len(candidates_nums) >= 2:
+                multi_val_parts = candidates_nums
+
+        if multi_val_parts:
+            # 搜尋目標頁 ±2 頁，找到最多個值的那頁
+            best_bboxes: list[list[float]] = []
+            best_found_idx = pdf_idx
+            for delta in (0, 1, -1, 2, -2):
+                idx = pdf_idx + delta
+                if 0 <= idx < total_pages:
+                    found = _search_multi_values(doc[idx], multi_val_parts)
+                    if len(found) > len(best_bboxes):
+                        best_bboxes = found
+                        best_found_idx = idx
+                        if len(found) == len(multi_val_parts):
+                            break   # 全找到就停
+
+            if best_bboxes:
+                old_bbox = ind.get("bbox")
+                ind["bbox"]      = best_bboxes   # list of [x0,y0,x1,y1]
+                ind["_pdf_page"] = physical_0idx_to_pdf_page(best_found_idx)
+                marker = "✓ 更新" if old_bbox != best_bboxes else "= 相同"
+                print(f"  [{key}] {marker}（多值）  找到 {len(best_bboxes)}/{len(multi_val_parts)} 個  [{page_src_note}]→p.{best_found_idx+1}")
+                fixed += 1
+                continue
+            # fallthrough → 一般搜尋
+
         bbox, found_idx = _search_nearby(doc, pdf_idx, value, key, source_text=source_text)
 
         if bbox:
@@ -245,8 +397,10 @@ def fix_company(company: str) -> tuple[int, int, int]:
 
 def main() -> None:
     total_fixed = total_nf = total_sk = 0
+    companies = _discover_companies()
+    print(f"偵測到 {len(companies)} 家公司：{companies}")
 
-    for company in COMPANIES:
+    for company in companies:
         print(f"\n{'='*50}")
         print(f"  {company}")
         print(f"{'='*50}")

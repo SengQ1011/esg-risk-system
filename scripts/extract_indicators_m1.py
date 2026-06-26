@@ -75,13 +75,42 @@ def _generate_with_retry(model: str, contents, config, logger: logging.Logger, t
                 raise
     return client.models.generate_content(model=model, contents=contents, config=config)
 
-# ── Demo 公司清單 ─────────────────────────────────────────────────
-COMPANIES = [
-    {"company": "台達電",  "ticker": "2308", "industry": "電子製造業", "filename": "台達電_2023.pdf",  "year": 2023},
-    {"company": "中鋼",    "ticker": "2002", "industry": "鋼鐵業",     "filename": "中鋼_2023.pdf",    "year": 2023},
-    {"company": "南山人壽","ticker": "5874", "industry": "保險業",     "filename": "南山人壽_2023.pdf","year": 2023},
-    {"company": "臺積電",  "ticker": "2330", "industry": "半導體製造業","filename": "臺積電_2023.pdf",  "year": 2023},
-]
+def _build_companies() -> list[dict]:
+    """
+    從 data/pdfs/ 自動偵測所有 PDF，不需要硬編碼任何公司清單。
+    ticker / industry 從既有的 indicators.json 讀取；完全新公司使用預設值。
+    """
+    import re as _re
+    result = []
+    seen: set[str] = set()
+    for pdf in sorted(PDF_DIR.glob("*.pdf")):
+        m = _re.match(r"^(.+?)_(\d{4})\.pdf$", pdf.name)
+        if not m:
+            continue
+        name, year = m.group(1), int(m.group(2))
+        if name in seen:
+            continue
+        seen.add(name)
+        ticker, industry = "0000", "其他"
+        ind_path = CACHE_DIR / f"{name}_indicators.json"
+        if ind_path.exists():
+            try:
+                _d = json.loads(ind_path.read_text(encoding="utf-8"))
+                ticker   = _d.get("ticker",   ticker)
+                industry = _d.get("industry",  industry)
+            except Exception:
+                pass
+        result.append({
+            "company":  name,
+            "ticker":   ticker,
+            "industry": industry,
+            "filename": pdf.name,
+            "year":     year,
+        })
+    return result
+
+
+COMPANIES = _build_companies()
 
 # ── GRI 索引定位 patterns ─────────────────────────────────────────
 GRI_INDEX_PATTERNS = [
@@ -334,42 +363,108 @@ _GRI_PARSER_SYSTEM = """你是一位 ESG 文件分析師，正在解析企業永
   若明確找不到，填 null；不要猜測。
 """
 
+def _build_gri_mini_pdf(
+    pdf_path: Path,
+    gri_pages: list[dict],
+    output_path: Path,
+    logger: logging.Logger,
+) -> bool:
+    """將 GRI 索引頁切出成獨立 PDF。成功回傳 True，失敗回傳 False。"""
+    try:
+        reader = PdfReader(str(pdf_path))
+        writer = PdfWriter()
+        total = len(reader.pages)
+        for p in gri_pages:
+            idx = p["page"] - 1   # 0-indexed
+            if 0 <= idx < total:
+                writer.add_page(reader.pages[idx])
+        if len(writer.pages) == 0:
+            return False
+        with open(output_path, "wb") as f:
+            writer.write(f)
+        size_kb = output_path.stat().st_size // 1024
+        logger.info(f"[Step 2] GRI mini PDF：{len(writer.pages)} 頁，{size_kb} KB → {output_path.name}")
+        return True
+    except Exception as e:
+        logger.warning(f"[Step 2] GRI mini PDF 建立失敗：{e}")
+        return False
+
+
 def call_step2_gri_parser(
     gri_pages: list[dict],
     company: str,
     logger: logging.Logger,
     force_step: int | None,
+    pdf_path: Path | None = None,
 ) -> dict:
-    """Step 2：Gemini 解析 GRI 索引，回傳頁碼映射。有快取則跳過 API。"""
+    """
+    Step 2：Gemini 解析 GRI 索引，回傳頁碼映射。
+
+    優先用視覺 PDF 模式（準確率高，表格欄位完整保留）；
+    Files API 不可用時 fallback 到純文字模式。
+    有快取則跳過 API。
+    """
     if force_step != 2:
         cached = load_step_cache(company, 2)
         if cached:
             logger.info("[Step 2] ✓ 使用快取，跳過 Gemini API（--force 或 --step 2 可重跑）")
             return cached
 
-    index_text = "\n\n".join(
-        f"[PDF 物理第 {p['page']} 頁]\n{p['text']}"
-        for p in gri_pages
-        if p["char_count"] > 50
+    prompt = "請解析這份 PDF 中的 GRI 內容索引表格，找出各指標的印刷頁碼。"
+    config  = types.GenerateContentConfig(
+        system_instruction=_GRI_PARSER_SYSTEM,
+        response_mime_type="application/json",
+        temperature=0.0,
     )
+    result  = None
 
-    est_tokens = len(index_text) // 3
-    logger.info(f"[Step 2] 呼叫 Gemini（預估 input ~{est_tokens:,} tokens）...")
-    logger.debug(f"[Step 2] 送出文字前 300 字：\n{index_text[:300]}")
+    # ── 優先：視覺 PDF 模式 ──────────────────────────────────────────
+    import hashlib as _hashlib
+    _safe = _hashlib.md5(company.encode()).hexdigest()[:8]
+    mini_pdf = LOG_DIR / f"gri_index_{_safe}.pdf"  # ASCII only，避免中文路徑觸發 Files API 編碼錯誤
+    if pdf_path and _build_gri_mini_pdf(pdf_path, gri_pages, mini_pdf, logger):
+        uploaded = None
+        try:
+            logger.info("[Step 2] 嘗試 Files API 上傳 GRI mini PDF...")
+            uploaded = client.files.upload(file=pathlib.Path(mini_pdf))
+            logger.info(f"[Step 2] 上傳成功，URI = {uploaded.uri}")
+            response = _generate_with_retry(
+                model="gemini-2.5-flash",
+                contents=[uploaded, prompt],
+                config=config,
+                logger=logger,
+                tag="Step 2 PDF",
+            )
+            result = json.loads(response.text)
+            logger.info("[Step 2] 視覺 PDF 模式成功")
+        except Exception as pdf_err:
+            logger.warning(f"[Step 2] 視覺 PDF 模式失敗：{pdf_err}，改用文字 fallback")
+            result = None
+        finally:
+            if uploaded:
+                try:
+                    client.files.delete(name=uploaded.name)
+                except Exception:
+                    pass
 
-    response = _generate_with_retry(
-        model="gemini-2.5-flash",
-        contents=f"以下是 GRI 索引頁面文字，請解析：\n\n{index_text}",
-        config=types.GenerateContentConfig(
-            system_instruction=_GRI_PARSER_SYSTEM,
-            response_mime_type="application/json",
-            temperature=0.0,
-        ),
-        logger=logger,
-        tag="Step 2",
-    )
+    # ── Fallback：純文字模式 ─────────────────────────────────────────
+    if result is None:
+        index_text = "\n\n".join(
+            f"[PDF 物理第 {p['page']} 頁]\n{p['text']}"
+            for p in gri_pages
+            if p["char_count"] > 50
+        )
+        logger.info(f"[Step 2] 文字模式（預估 ~{len(index_text)//3:,} tokens）...")
+        logger.debug(f"[Step 2] 文字前 300 字：\n{index_text[:300]}")
+        response = _generate_with_retry(
+            model="gemini-2.5-flash",
+            contents=f"以下是 GRI 索引頁面文字，請解析：\n\n{index_text}",
+            config=config,
+            logger=logger,
+            tag="Step 2 Text",
+        )
+        result = json.loads(response.text)
 
-    result = json.loads(response.text)
     logger.info(
         f"[Step 2] 完成｜page_offset={result.get('page_offset', 0)}｜"
         f"找到頁碼：{sum(1 for v in result.get('indicators', {}).values() if v)}/18 個"
@@ -519,6 +614,56 @@ def search_by_keywords(
             logger.info(f"[Step 2B] {key}: 關鍵字命中 → 印刷頁 {result[key]}")
 
     logger.info(f"[Step 2B] 完成，新增 {len(result)} 個指標頁碼")
+    return result
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Step 2C: 關鍵字直接掃描物理頁（處理 GRI 指向章節標題而非數據頁的情況）
+# ═══════════════════════════════════════════════════════════════════
+
+def keyword_scan_physical_pages(
+    pages: list[dict],
+    gri_index_start_page: int,
+    total_pdf_pages: int,
+    logger: logging.Logger,
+    top_k: int = 2,
+) -> set[int]:
+    """
+    對所有指標關鍵字做物理頁級別掃描，回傳最多命中頁面的 0-indexed 集合（含 ±1 buffer）。
+
+    不走印刷頁 → 物理頁轉換，直接在物理頁操作，正確處理 2-up 等格式。
+    目的：補充 GRI 索引只指向章節標題頁，而數據表格在更後面頁面的情況。
+    """
+    content_pages = [
+        p for p in pages
+        if 15 < p["page"] < gri_index_start_page - 5
+    ]
+
+    # 每個物理頁的總關鍵字命中數（跨所有指標累加）
+    page_hits: dict[int, int] = {}
+    for key, keywords in INDICATOR_KEYWORDS.items():
+        for page in content_pages:
+            hits = sum(1 for kw in keywords if kw in page["text"])
+            if hits > 0:
+                phys_0idx = page["page"] - 1   # 1-indexed → 0-indexed
+                page_hits[phys_0idx] = page_hits.get(phys_0idx, 0) + hits
+
+    if not page_hits:
+        return set()
+
+    # 取命中密度最高的前 top_k × 指標數 個物理頁，加 ±1 buffer
+    # 上限設為 50 頁，避免過度膨脹 compact PDF
+    top_limit = min(len(INDICATOR_KEYWORDS) * top_k, 50)
+    top_pages = sorted(page_hits, key=lambda p: -page_hits[p])[:top_limit]
+
+    result: set[int] = set()
+    for phys_0 in top_pages:
+        for delta in (-1, 0, 1):
+            idx = phys_0 + delta
+            if 0 <= idx < total_pdf_pages:
+                result.add(idx)
+
+    logger.info(f"[Step 2C] 關鍵字物理頁掃描：{len(top_pages)} 個命中頁，含 buffer 共 {len(result)} 頁")
     return result
 
 
@@ -915,7 +1060,7 @@ def process_company(info: dict, force_all: bool, force_step: int | None) -> bool
         logger.info("── Step 2: Gemini 解析 GRI 索引 ────────────────")
         time.sleep(2)
         try:
-            gri_result = call_step2_gri_parser(gri_pages, company, logger, force_step)
+            gri_result = call_step2_gri_parser(gri_pages, company, logger, force_step, pdf_path=pdf_path)
             page_offset     = gri_result.get("page_offset", offset_guess)
             indicator_pages = gri_result.get("indicators", {})
         except Exception as step2_err:
@@ -940,9 +1085,10 @@ def process_company(info: dict, force_all: bool, force_step: int | None) -> bool
         gri_index_start_page = gri_pages[0]["page"] if gri_pages else len(pages)
 
         # ── Step 2A/2B: Fallback — 章節編號解析 + 關鍵字搜尋 ────────
-        fallback_triggered = False
+        pages_added = False
+
+        # Tier A：整體數量不足時才啟動章節編號解析
         if len(found_mappings) < FALLBACK_THRESHOLD:
-            fallback_triggered = True
             logger.info(
                 f"[Fallback] Step 2 僅找到 {len(found_mappings)} 個頁碼（< {FALLBACK_THRESHOLD}），"
                 "啟動 Tier A：章節編號解析"
@@ -951,33 +1097,34 @@ def process_company(info: dict, force_all: bool, force_step: int | None) -> bool
                 gri_pages, pages, indicator_pages, page_offset, logger
             )
             for k, v in section_pages.items():
-                if k not in found_mappings or not found_mappings[k]:
+                if not found_mappings.get(k):
                     found_mappings[k] = v
                     indicator_pages[k] = v
+                    pages_added = True
             logger.info(f"[Fallback] Tier A 後：共 {len(found_mappings)}/18 個指標有頁碼")
 
-            # ── Step 2B: Tier B Fallback — 關鍵字搜尋 ──────────────
-            if len(found_mappings) < FALLBACK_THRESHOLD:
-                logger.info(
-                    f"[Fallback] Tier A 後仍只有 {len(found_mappings)} 個，"
-                    "啟動 Tier B：關鍵字搜尋"
-                )
-                still_missing = [k for k in indicator_pages if not found_mappings.get(k)]
-                keyword_pages = search_by_keywords(
-                    pages, still_missing, page_offset, gri_index_start_page, logger
-                )
-                for k, v in keyword_pages.items():
-                    if k not in found_mappings or not found_mappings[k]:
-                        found_mappings[k] = v
-                        indicator_pages[k] = v
-                logger.info(f"[Fallback] Tier B 後：共 {len(found_mappings)}/18 個指標有頁碼")
+        # Tier B：關鍵字搜尋 — 永遠補充仍缺頁碼的指標（不論 Step 2 找到幾個）
+        # 解決 GRI 索引用章節號而非頁碼、或索引指向摘要頁而非數據頁的情況
+        still_missing = [k for k in indicator_pages if not found_mappings.get(k)]
+        if still_missing:
+            logger.info(
+                f"[Fallback] Tier B 關鍵字搜尋：補充 {len(still_missing)} 個仍缺頁碼的指標"
+            )
+            keyword_pages = search_by_keywords(
+                pages, still_missing, page_offset, gri_index_start_page, logger
+            )
+            for k, v in keyword_pages.items():
+                if not found_mappings.get(k):
+                    found_mappings[k] = v
+                    indicator_pages[k] = v
+                    pages_added = True
+            logger.info(f"[Fallback] Tier B 後：共 {len(found_mappings)}/18 個指標有頁碼")
 
-        # Fallback 補充了新頁面 → Step 4 的舊 cache 已過時，強制清除重跑
-        if fallback_triggered and len(found_mappings) >= FALLBACK_THRESHOLD:
-            if force_step not in (4, 5):   # 除非使用者明確指定只跑某步驟
-                clear_step_cache(company, 4)
-                clear_step_cache(company, 5)
-                logger.info("[Fallback] 已清除 Step 4/5 cache，將用擴充後的 compact PDF 重新抽取")
+        # Fallback 補充了新頁面 → Step 4/5 的舊 cache 已過時，強制清除重跑
+        if pages_added and force_step not in (4, 5):
+            clear_step_cache(company, 4)
+            clear_step_cache(company, 5)
+            logger.info("[Fallback] 已清除 Step 4/5 cache，將用擴充後的 compact PDF 重新抽取")
 
         # ── Step 3 ─────────────────────────────────────────────
         logger.info("── Step 3: 切片精簡 PDF ─────────────────────────")
@@ -994,6 +1141,21 @@ def process_company(info: dict, force_all: bool, force_step: int | None) -> bool
         if not physical_pages:
             logger.warning("Step 2 無法取得任何頁碼，fallback 使用前 60 頁")
             physical_pages = list(range(min(60, total_pdf_pages)))
+
+        # ── Step 2C: 關鍵字物理頁掃描 ──────────────────────────────
+        # 補充 GRI 指向章節標題、數據頁在更後方的情況（2-up PDF 尤其常見）
+        # 直接在物理頁操作，不走印刷頁轉換，first-run 時擴充 compact；
+        # Step 4 cache 存在時不清除，後續 run 仍可沿用快取
+        kw_physical = keyword_scan_physical_pages(
+            pages, gri_index_start_page, total_pdf_pages, logger
+        )
+        kw_new = kw_physical - set(physical_pages)
+        if kw_new:
+            physical_pages = sorted(set(physical_pages) | kw_physical)
+            logger.info(f"[Step 2C] compact 擴充：{len(kw_new)} 個新物理頁，共 {len(physical_pages)} 頁")
+            # 僅當 Step 4 cache 尚不存在時才需要重清（首次 run 自然會跑，快取存在代表已跑過）
+            if kw_new and not _cache_path(company, 4).exists() and force_step not in (4, 5):
+                pass  # 首次 run：Step 4 本來就要跑，無需額外清除
 
         compact_pdf = LOG_DIR / f"compact_{info['ticker']}.pdf"
         page_count  = slice_pdf(pdf_path, physical_pages, compact_pdf, logger)
@@ -1013,6 +1175,8 @@ def process_company(info: dict, force_all: bool, force_step: int | None) -> bool
             if not isinstance(_ind, dict):
                 continue
             # 保存 Gemini 給的 compact PDF 頁碼（Step 5 bbox 定位用）
+            # 注意：Step 4 的 source_page 是印刷頁碼（如 188），不是 compact index（如 14）
+            # _pdf_page 的計算移到 Step 5 後處理，用 Step 5 回傳的 compact_page 才正確
             _ind["_compact_page"] = _ind.get("source_page")
             # 改用 GRI 頁碼映射（原始報告印刷頁碼）
             if _key in found_mappings and found_mappings[_key]:
@@ -1061,6 +1225,19 @@ def process_company(info: dict, force_all: bool, force_step: int | None) -> bool
             indicators[_key]["bbox"] = _bbox
             if _compact_page is not None:
                 indicators[_key]["_compact_page"] = _compact_page
+
+        # ── Step 5 後：用 compact_page_map 算出 _pdf_page ────────────
+        # Step 5 回傳的 _compact_page 才是真正的 compact PDF index（如 14, 16, 17）
+        # Step 4 的 source_page 是印刷頁碼（如 188），不能直接查 compact_page_map
+        for _key, _ind in indicators.items():
+            if not isinstance(_ind, dict) or _ind.get("_pdf_page"):
+                continue  # 已由 fix_bbox 設定過的不覆蓋
+            _cp = _ind.get("_compact_page")
+            if _cp is not None:
+                _phys = compact_page_map.get(int(_cp))
+                if _phys is not None:
+                    _ind["_pdf_page"] = _phys
+                    logger.debug(f"[Post5] {_key} _pdf_page={_phys}（compact p.{_cp}）")
 
         # ── 儲存快取 ──────────────────────────────────────────
         found_count = sum(

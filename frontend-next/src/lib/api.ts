@@ -21,6 +21,29 @@ export async function fetchCompanies(): Promise<CompaniesResponse> {
   return apiFetch<CompaniesResponse>("/api/companies")
 }
 
+export interface PdfCandidate {
+  url: string
+  label: string
+  local: boolean
+}
+
+export interface SearchPdfResult {
+  candidates: PdfCandidate[]
+  hint: string
+}
+
+export async function searchCompanyPdf(
+  company: string,
+  year: number,
+  ticker = "",
+): Promise<SearchPdfResult> {
+  const params = new URLSearchParams({ company, year: String(year), ticker })
+  const res = await apiFetch<{ status: string; data: SearchPdfResult }>(
+    `/api/search-pdf?${params}`,
+  )
+  return res.data
+}
+
 export async function fetchCompanyDetail(name: string): Promise<CompanyDetailResponse> {
   return apiFetch<CompanyDetailResponse>(`/api/company/${encodeURIComponent(name)}`)
 }
@@ -58,8 +81,39 @@ export async function analyzeCompany(
   return json.data as AnalyzeResponse
 }
 
-/** localStorage key for PiP active job */
+/** localStorage key for PiP active jobs (JSON array of PipJob) */
 export const PIP_KEY = "esg_active_job"
+
+export interface PipJob {
+  jobId: string
+  companyName: string
+}
+
+export function getPipJobs(): PipJob[] {
+  try {
+    const raw = localStorage.getItem(PIP_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    // backward compat: single object → wrap in array
+    return Array.isArray(parsed) ? parsed : [parsed]
+  } catch {
+    return []
+  }
+}
+
+export function addPipJob(job: PipJob): void {
+  const jobs = getPipJobs().filter(j => j.jobId !== job.jobId)
+  localStorage.setItem(PIP_KEY, JSON.stringify([...jobs, job]))
+}
+
+export function removePipJob(jobId: string): void {
+  const jobs = getPipJobs().filter(j => j.jobId !== jobId)
+  if (jobs.length === 0) {
+    localStorage.removeItem(PIP_KEY)
+  } else {
+    localStorage.setItem(PIP_KEY, JSON.stringify(jobs))
+  }
+}
 
 /** DELETE /api/job/{jobId} — cancel analysis */
 export async function cancelJob(jobId: string): Promise<void> {

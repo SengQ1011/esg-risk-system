@@ -38,6 +38,14 @@ def _load_config() -> dict:
         return yaml.safe_load(f)
 
 
+def _get_sector_norm(cfg: dict, sector: str) -> dict:
+    """全域 normalization + 產業覆寫合併。僅影響有列出的指標。"""
+    norm = dict(cfg["normalization"])
+    overrides = cfg.get("sector_normalization", {}).get(sector, {})
+    norm.update(overrides)
+    return norm
+
+
 def _normalize(key: str, value: float | None, norm_cfg: dict) -> float | None:
     if value is None:
         return None
@@ -81,9 +89,17 @@ def _score_dimension(
             raw_value   = raw_indicator.get("value")
             source_page = raw_indicator.get("source_page")
             pdf_page    = raw_indicator.get("_pdf_page")   # 物理頁碼，PyMuPDF 確認
-            bbox        = raw_indicator.get("bbox")
             unit        = raw_indicator.get("unit")
             confidence  = raw_indicator.get("confidence", 1.0)
+            # bbox 可能是單一 [x0,y0,x1,y1] 或多個 [[x0,y0,x1,y1], ...]
+            # 統一正規化為 list of lists，方便前端迭代渲染
+            _raw_bbox = raw_indicator.get("bbox")
+            if _raw_bbox is None:
+                bbox = None
+            elif isinstance(_raw_bbox[0], (int, float)):
+                bbox = [_raw_bbox]          # 舊格式：升級為 list of lists
+            else:
+                bbox = _raw_bbox            # 新格式：已是 list of lists
         else:
             raw_value   = raw_indicator
             source_page = None
@@ -125,6 +141,7 @@ def calculate_esg_score(
     indicators: dict,
     news_event_score: float = 0.0,
     greenwash_flag: bool = False,
+    sector: str = "default",
 ) -> dict:
     """
     主入口。
@@ -148,7 +165,7 @@ def calculate_esg_score(
         }
     """
     cfg = _load_config()
-    norm_cfg = cfg["normalization"]
+    norm_cfg = _get_sector_norm(cfg, sector)
     event_cfg = cfg["events"]
     dim_weights = cfg["dimensions"]
 
@@ -182,6 +199,7 @@ def calculate_esg_score(
         "g_score": g_score,
         "total_score": round(total_score, 2),
         "grade": grade,
+        "sector": sector,
         "news_event_score": news_event_score,
         "greenwash_flag": greenwash_flag,
         "penalties": {

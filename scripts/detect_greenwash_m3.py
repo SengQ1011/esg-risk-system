@@ -182,16 +182,14 @@ def detect_greenwash(
         "治理宣稱 vs 違規記錄、勞工宣稱 vs 傷亡/違規數據。"
     )
 
-    try:
+    def _call_gemini() -> dict:
         from google.genai import types
         client = _get_client()
-
         if pdf_available:
-            # 優先使用 compact PDF（含實際報告書文字）
             uploaded = None
             try:
                 uploaded = client.files.upload(file=pathlib.Path(compact_pdf))
-                response = client.models.generate_content(
+                resp = client.models.generate_content(
                     model="gemini-2.5-flash",
                     contents=[uploaded, prompt],
                     config=types.GenerateContentConfig(
@@ -207,8 +205,7 @@ def detect_greenwash(
                     except Exception:
                         pass
         else:
-            # fallback：只用量化指標進行純文字分析
-            response = client.models.generate_content(
+            resp = client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=prompt,
                 config=types.GenerateContentConfig(
@@ -217,17 +214,34 @@ def detect_greenwash(
                     temperature=0.1,
                 ),
             )
+        return json.loads(resp.text)
 
-        result = json.loads(response.text)
+    analysis_failed = False
+    result = None
+    last_error = None
+    for attempt in range(3):
+        try:
+            result = _call_gemini()
+            break
+        except Exception as e:
+            last_error = e
+            is_503 = "503" in str(e) or "UNAVAILABLE" in str(e)
+            if is_503 and attempt < 2:
+                wait = 30 * (attempt + 1)
+                print(f"  [M3] Gemini 503，{wait}s 後重試（第 {attempt + 1}/3 次）...")
+                time.sleep(wait)
+            else:
+                print(f"  [M3] Gemini 呼叫失敗（attempt {attempt + 1}）：{e}")
+                analysis_failed = True
+                break
 
-    except Exception as e:
-        print(f"  [M3] Gemini 呼叫失敗：{e}")
+    if result is None:
         result = {
             "claims":          [],
             "contradictions":  [],
             "greenwash_flag":  False,
             "confidence":      0.0,
-            "summary":         f"分析失敗：{e}",
+            "summary":         f"分析失敗：{last_error}",
         }
 
     greenwash_flag = result.get("greenwash_flag", False)
@@ -254,15 +268,18 @@ def detect_greenwash(
             print(f"       矛盾：{c['description'][:80]}...")
 
     # 更新 news_cache（保留既有新聞事件，只覆蓋 M3 相關欄位）
-    news_cache.update({
-        "greenwash_flag":        greenwash_flag,
-        "greenwash_reasons":     [c["description"] for c in contradictions],
-        "greenwash_details":     contradictions,   # 新欄位：含 source_page
-        "greenwash_claims":      claims,
-        "greenwash_confidence":  confidence,
-        "greenwash_summary":     summary,
-        "greenwash_analyzed_at": datetime.now().isoformat(),
-    })
+    update_payload = {
+        "greenwash_flag":       greenwash_flag,
+        "greenwash_reasons":    [c["description"] for c in contradictions],
+        "greenwash_details":    contradictions,
+        "greenwash_claims":     claims,
+        "greenwash_confidence": confidence,
+        "greenwash_summary":    summary,
+    }
+    # 分析失敗時不寫入 greenwash_analyzed_at，讓下次執行可自動重試
+    if not analysis_failed:
+        update_payload["greenwash_analyzed_at"] = datetime.now().isoformat()
+    news_cache.update(update_payload)
 
     news_path = CACHE_DIR / f"{company_name}_news.json"
     news_path.write_text(json.dumps(news_cache, ensure_ascii=False, indent=2), encoding="utf-8")

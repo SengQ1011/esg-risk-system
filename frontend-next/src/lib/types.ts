@@ -26,7 +26,7 @@ export interface IndicatorBreakdownItem {
   unit: string | null
   source_page: number | null
   pdf_page: number | null      // PyMuPDF 確認的物理頁碼（react-pdf 1-based），優先用此跳頁
-  bbox: [number, number, number, number] | null
+  bbox: [number, number, number, number][] | null  // list of [x0,y0,x1,y1]，支援多個 highlight
   confidence: number
   normalized: number | null
   weight: number

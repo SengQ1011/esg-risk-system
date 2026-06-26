@@ -1,24 +1,30 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
   AlertTriangle,
   ArrowRight,
   Building2,
+  Check,
   ChevronDown,
+  ChevronLeft,
+  ExternalLink,
   Link2,
+  Loader2,
   Search,
   Trash2,
   UploadCloud,
+  X,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
-import { analyzeCompany, deleteCompany } from "@/lib/api"
+import { analyzeCompany, deleteCompany, searchCompanyPdf } from "@/lib/api"
+import type { PdfCandidate, SearchPdfResult } from "@/lib/api"
 import type { CompanySummary } from "@/lib/types"
 
 // ─────────────────────────────────────────────────────────────
@@ -154,38 +160,122 @@ function CompanyCard({ c, onDelete }: { c: CompanySummary; onDelete: () => void 
 }
 
 // ─────────────────────────────────────────────────────────────
-// AnalyzeForm — client-side search + upload
+// AnalyzeForm — 多步驟：搜尋 → 候選清單 → PDF 預覽確認 → 分析
 // ─────────────────────────────────────────────────────────────
-const YEAR_OPTIONS = [2024, 2023, 2022, 2021]
+const CURRENT_YEAR = new Date().getFullYear()
+const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => CURRENT_YEAR - i)
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+
+type FormStep =
+  | { kind: "idle" }
+  | { kind: "searching" }
+  | { kind: "picking"; candidates: PdfCandidate[]; companyName: string; year: number }
+  | { kind: "previewing"; candidate: PdfCandidate; candidates: PdfCandidate[]; companyName: string; year: number }
+  | { kind: "submitting" }
+
+function proxyUrl(candidate: PdfCandidate): string {
+  if (candidate.local) {
+    // candidate.url 已經是 "/api/proxy-pdf?path=filename.pdf"
+    return `${BASE_URL}${candidate.url}`
+  }
+  return `${BASE_URL}/api/proxy-pdf?url=${encodeURIComponent(candidate.url)}`
+}
 
 function AnalyzeForm() {
-  const router  = useRouter()
+  const router      = useRouter()
+  const [step, setStep]         = useState<FormStep>({ kind: "idle" })
   const [query, setQuery]       = useState("")
-  const [year,  setYear]        = useState(2023)
+  const [year,  setYear]        = useState(CURRENT_YEAR - 1)
   const [file,  setFile]        = useState<File | null>(null)
   const [reportUrl, setReportUrl] = useState("")
   const [showUrlInput, setShowUrlInput] = useState(false)
   const [dragging, setDragging] = useState(false)
-  const [loading, setLoading]   = useState(false)
   const [error,  setError]      = useState<string | null>(null)
+  const [iframeError, setIframeError] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // previewing 換候選時重置 iframe 錯誤狀態，並對遠端 URL 做 pre-flight 檢查
+  const previewUrl = step.kind === "previewing" ? proxyUrl(step.candidate) : null
+  const previewIsLocal = step.kind === "previewing" ? step.candidate.local : false
+  useEffect(() => {
+    setIframeError(false)
+    if (!previewUrl || previewIsLocal) return
+    // 遠端 URL 透過 proxy：先確認 proxy 能拿到 PDF
+    const ctrl = new AbortController()
+    fetch(previewUrl, { signal: ctrl.signal, method: "GET", headers: { Range: "bytes=0-1023" } })
+      .then((r) => {
+        if (!r.ok) setIframeError(true)
+        const ct = r.headers.get("content-type") ?? ""
+        if (!ct.includes("pdf") && !ct.includes("octet-stream")) setIframeError(true)
+      })
+      .catch(() => {}) // abort = 正常，網路錯誤讓 onError 處理
+    return () => ctrl.abort()
+  }, [previewUrl, previewIsLocal])
+
+  function reset() {
+    setStep({ kind: "idle" })
+    setFile(null)
+    setReportUrl("")
+    setError(null)
+    setIframeError(false)
+  }
+
   async function handleSubmit() {
-    const name = query.trim()
+    const raw  = query.trim()
     const url  = reportUrl.trim()
-    if (!name && !file && !url) {
+
+    if (!raw && !file && !url) {
       setError("請輸入公司名稱 / 股票代號、貼上報告書網址，或上傳 PDF")
       return
     }
     setError(null)
-    setLoading(true)
+
+    // 從輸入解析 ticker（4位數字）和公司名稱
+    // 支援：「2330」、「台積電 2330」、「台積電」
+    const tickerMatch = raw.match(/\b(\d{4,5})\b/)
+    const ticker = tickerMatch ? tickerMatch[1] : ""
+    // 名稱：若輸入含非數字字元則取整段，否則用 ticker 當公司名（pipeline 會辨識）
+    const name = raw.replace(/\b\d{4,5}\b/, "").trim() || raw
+
+    // 有 file 或 URL → 直接送分析（不需確認）
+    if (file || url) {
+      setStep({ kind: "submitting" })
+      try {
+        const res = await analyzeCompany(name, file ?? undefined, url || undefined, year)
+        const p = res.company_name ? `?company=${encodeURIComponent(res.company_name)}` : ""
+        router.push(`/job/${res.job_id}${p}`)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "發生未知錯誤")
+        setStep({ kind: "idle" })
+      }
+      return
+    }
+
+    // 只有名稱/ticker → 先搜尋候選 PDF，讓用戶確認
+    setStep({ kind: "searching" })
     try {
-      const res = await analyzeCompany(name, file ?? undefined, url || undefined, year)
-      const companyParam = res.company_name ? `?company=${encodeURIComponent(res.company_name)}` : ""
-      router.push(`/job/${res.job_id}${companyParam}`)
+      const result = await searchCompanyPdf(name || ticker, year, ticker)
+      if (result.candidates.length === 0) {
+        setError(result.hint || "找不到報告書，請手動上傳 PDF 或貼上網址")
+        setStep({ kind: "idle" })
+        return
+      }
+      setStep({ kind: "picking", candidates: result.candidates, companyName: name || ticker, year })
     } catch (e) {
-      setError(e instanceof Error ? e.message : "發生未知錯誤")
-      setLoading(false)
+      setError(e instanceof Error ? e.message : "搜尋失敗")
+      setStep({ kind: "idle" })
+    }
+  }
+
+  async function handleConfirm(candidate: PdfCandidate, companyName: string, yr: number) {
+    setStep({ kind: "submitting" })
+    try {
+      const res = await analyzeCompany(companyName, undefined, candidate.local ? undefined : candidate.url, yr)
+      const p = res.company_name ? `?company=${encodeURIComponent(res.company_name)}` : ""
+      router.push(`/job/${res.job_id}${p}`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "分析失敗")
+      setStep({ kind: "idle" })
     }
   }
 
@@ -193,11 +283,140 @@ function AnalyzeForm() {
     e.preventDefault()
     setDragging(false)
     const dropped = e.dataTransfer.files[0]
-    if (dropped?.type === "application/pdf") {
-      setFile(dropped)
-    }
+    if (dropped?.type === "application/pdf") setFile(dropped)
   }
 
+  const isSubmitting = step.kind === "submitting"
+  const isSearching  = step.kind === "searching"
+
+  // ── 步驟：候選清單 ───────────────────────────────────────────
+  if (step.kind === "picking") {
+    const { candidates, companyName, year: yr } = step
+    return (
+      <Card className="border-primary/20 shadow-sm">
+        <CardContent className="flex flex-col gap-4 p-6">
+          <div className="flex items-center gap-2">
+            <button onClick={reset} className="rounded p-1 text-muted-foreground hover:text-foreground">
+              <ChevronLeft className="size-4" />
+            </button>
+            <h3 className="text-sm font-semibold">找到 {candidates.length} 份候選報告書 — 請選擇預覽</h3>
+          </div>
+          <div className="flex flex-col gap-2">
+            {candidates.map((c, i) => (
+              <div key={i} className="flex items-center gap-3 rounded-lg border p-3 text-sm">
+                <span className="flex-1 truncate text-muted-foreground" title={c.label}>
+                  {c.local ? "📁 " : "🌐 "}{c.label}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setStep({ kind: "previewing", candidate: c, candidates, companyName, year: yr })}
+                >
+                  預覽
+                </Button>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">若以上均非正確報告書，請</p>
+          <Button variant="ghost" size="sm" className="self-start" onClick={reset}>
+            <UploadCloud className="mr-1.5 size-3.5" /> 改用手動上傳
+          </Button>
+          {error && (
+            <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <AlertTriangle className="size-4 shrink-0" />{error}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // ── 步驟：PDF 預覽確認 ───────────────────────────────────────
+  if (step.kind === "previewing") {
+    const { candidate, candidates, companyName, year: yr } = step
+    const pUrl = proxyUrl(candidate)
+
+    return (
+      <Card className="border-primary/20 shadow-sm">
+        <CardContent className="flex flex-col gap-4 p-6">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setStep({ kind: "picking", candidates, companyName, year: yr })}
+              className="rounded p-1 text-muted-foreground hover:text-foreground"
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+            <h3 className="text-sm font-semibold">確認這是 {companyName} {yr} 年的永續報告書？</h3>
+          </div>
+
+          {/* PDF 預覽 iframe，失敗時顯示 fallback */}
+          <div className="relative overflow-hidden rounded-lg border bg-muted" style={{ height: 480 }}>
+            {iframeError ? (
+              <div className="flex size-full flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted-foreground">
+                <AlertTriangle className="size-8 text-amber-500" />
+                <p className="font-medium text-foreground">無法在此預覽</p>
+                <p className="text-xs">網站可能有 bot 防護或不允許嵌入。<br/>請點下方連結在新分頁確認是否為正確的報告書。</p>
+                <a
+                  href={candidate.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs text-primary hover:bg-muted"
+                >
+                  <ExternalLink className="size-3" />在新分頁開啟 PDF
+                </a>
+              </div>
+            ) : (
+              <iframe
+                key={pUrl}
+                src={pUrl}
+                className="size-full"
+                title="PDF 預覽"
+                onError={() => setIframeError(true)}
+              />
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              className="flex-1"
+              onClick={() => handleConfirm(candidate, companyName, yr)}
+              disabled={isSubmitting}
+            >
+              {isSubmitting
+                ? <><Loader2 className="mr-1.5 size-4 animate-spin" />分析中…</>
+                : <><Check className="mr-1.5 size-4" />是，開始分析</>}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setStep({ kind: "picking", candidates, companyName, year: yr })}
+            >
+              返回清單
+            </Button>
+            <Button variant="ghost" onClick={reset}>
+              <UploadCloud className="mr-1.5 size-3.5" />手動上傳
+            </Button>
+          </div>
+          {!candidate.local && !iframeError && (
+            <a
+              href={candidate.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <ExternalLink className="size-3" />在新分頁開啟原始連結
+            </a>
+          )}
+          {error && (
+            <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <AlertTriangle className="size-4 shrink-0" />{error}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // ── 步驟：搜尋中 / 分析中（主表單） ─────────────────────────
   return (
     <Card className="border-primary/20 shadow-sm">
       <CardContent className="flex flex-col gap-5 p-6">
@@ -210,27 +429,27 @@ function AnalyzeForm() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-              placeholder="例：台積電、2330"
-              className="w-full rounded-lg border bg-background py-2 pl-9 pr-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
+              placeholder="例：台積電 2330、2330（含代號可自動搜尋）"
+              disabled={isSearching || isSubmitting}
+              className="w-full rounded-lg border bg-background py-2 pl-9 pr-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30 disabled:opacity-60"
             />
           </div>
-          {/* 年份選擇 */}
           <select
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
-            className="rounded-lg border bg-background px-2 py-2 text-sm outline-none ring-offset-background focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30 shrink-0"
+            disabled={isSearching || isSubmitting}
+            className="rounded-lg border bg-background px-2 py-2 text-sm outline-none ring-offset-background focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30 shrink-0 disabled:opacity-60"
           >
             {YEAR_OPTIONS.map((y) => (
               <option key={y} value={y}>{y} 年</option>
             ))}
           </select>
-          <Button
-            onClick={handleSubmit}
-            disabled={loading}
-            size="lg"
-            className="shrink-0"
-          >
-            {loading ? "分析中…" : "開始分析"}
+          <Button onClick={handleSubmit} disabled={isSearching || isSubmitting} size="lg" className="shrink-0">
+            {isSearching
+              ? <><Loader2 className="mr-1.5 size-4 animate-spin" />搜尋中…</>
+              : isSubmitting
+              ? <><Loader2 className="mr-1.5 size-4 animate-spin" />分析中…</>
+              : "開始分析"}
           </Button>
         </div>
 
@@ -238,9 +457,8 @@ function AnalyzeForm() {
         <div
           className={cn(
             "flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed p-6 text-center transition-colors",
-            dragging
-              ? "border-primary bg-primary/5 text-primary"
-              : "border-border text-muted-foreground hover:border-primary/50 hover:bg-muted/30",
+            dragging ? "border-primary bg-primary/5 text-primary"
+                     : "border-border text-muted-foreground hover:border-primary/50 hover:bg-muted/30",
           )}
           onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
           onDragLeave={() => setDragging(false)}
@@ -261,14 +479,11 @@ function AnalyzeForm() {
             type="file"
             accept="application/pdf"
             className="sr-only"
-            onChange={(e) => {
-              const f = e.target.files?.[0]
-              if (f) setFile(f)
-            }}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) setFile(f) }}
           />
         </div>
 
-        {/* 進階選項：貼上 URL */}
+        {/* 進階：貼上 URL */}
         <div>
           <button
             type="button"
@@ -278,7 +493,6 @@ function AnalyzeForm() {
             <ChevronDown className={cn("size-3 transition-transform", showUrlInput && "rotate-180")} />
             找不到報告書？貼上網址
           </button>
-
           {showUrlInput && (
             <div className="mt-2 flex items-center gap-2">
               <Link2 className="size-4 shrink-0 text-muted-foreground" />
@@ -295,8 +509,7 @@ function AnalyzeForm() {
 
         {error && (
           <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            <AlertTriangle className="size-4 shrink-0" />
-            {error}
+            <AlertTriangle className="size-4 shrink-0" />{error}
           </div>
         )}
       </CardContent>
@@ -307,7 +520,6 @@ function AnalyzeForm() {
 // ─────────────────────────────────────────────────────────────
 // CompanyListSection — fetches companies on the client
 // ─────────────────────────────────────────────────────────────
-import { useEffect } from "react"
 import { fetchCompanies } from "@/lib/api"
 
 function CompanyListSection() {

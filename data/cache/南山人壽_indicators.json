@@ -43,10 +43,18 @@
       "confidence": 0.95,
       "_compact_page": 5,
       "bbox": [
-        0.2842,
-        0.6949,
-        0.3132,
-        0.7133
+        [
+          0.0236,
+          0.104,
+          0.0382,
+          0.1376
+        ],
+        [
+          0.2842,
+          0.6949,
+          0.3132,
+          0.7133
+        ]
       ],
       "_pdf_page": 49
     },
@@ -58,10 +66,10 @@
       "confidence": 0.95,
       "_compact_page": 7,
       "bbox": [
-        0.8904,
-        0.7312,
-        0.9132,
-        0.7454
+        0.1044,
+        0.2483,
+        0.1994,
+        0.266
       ],
       "_pdf_page": 51
     },
@@ -87,7 +95,20 @@
       "source_page": 49,
       "confidence": 0.7,
       "_compact_page": 10,
-      "bbox": null,
+      "bbox": [
+        [
+          0.8578,
+          0.5298,
+          0.8894,
+          0.5457
+        ],
+        [
+          0.8549,
+          0.6165,
+          0.8923,
+          0.6324
+        ]
+      ],
       "_pdf_page": 54
     },
     "water": {
@@ -120,12 +141,7 @@
       "source_page": 110,
       "confidence": 0.95,
       "_compact_page": 27,
-      "bbox": [
-        0.3069,
-        0.3663,
-        0.3278,
-        0.383
-      ],
+      "bbox": null,
       "_pdf_page": 112
     },
     "turnover": {
@@ -135,12 +151,7 @@
       "source_page": 116,
       "confidence": 0.95,
       "_compact_page": 30,
-      "bbox": [
-        0.4093,
-        0.7463,
-        0.4291,
-        0.7622
-      ],
+      "bbox": null,
       "_pdf_page": 117
     },
     "female_ratio": {
@@ -153,7 +164,7 @@
       "bbox": [
         0.4096,
         0.2092,
-        0.4316,
+        0.4413,
         0.2268
       ],
       "_pdf_page": 106
@@ -168,7 +179,7 @@
       "bbox": [
         0.5906,
         0.3108,
-        0.6126,
+        0.6224,
         0.3285
       ],
       "_pdf_page": 110
@@ -180,12 +191,7 @@
       "source_page": 21,
       "confidence": 0.95,
       "_compact_page": 22,
-      "bbox": [
-        0.7111,
-        0.815,
-        0.733,
-        0.8326
-      ],
+      "bbox": null,
       "_pdf_page": 105
     },
     "independent_director_ratio": {
@@ -210,12 +216,7 @@
       "source_page": 75,
       "confidence": 0.95,
       "_compact_page": 15,
-      "bbox": [
-        0.6235,
-        0.8125,
-        0.63,
-        0.8301
-      ],
+      "bbox": null,
       "_pdf_page": 76
     },
     "has_sustainability_officer": {
@@ -243,12 +244,7 @@
       "source_page": 80,
       "confidence": 0.95,
       "_compact_page": 20,
-      "bbox": [
-        0.0259,
-        0.114,
-        0.0405,
-        0.1224
-      ],
+      "bbox": null,
       "_pdf_page": 81
     }
   },

@@ -48,22 +48,43 @@ events:
 # 「越高越好」指標：normalized = min(1, value / max_ref)
 # 布林值指標：1.0 = true（有設立），0.0 = false
 normalization:
-  ghg_scope1_max: 10000000     # 公噸CO2e（鋼鐵業最高水準）
-  ghg_scope2_max: 1000000      # 公噸CO2e
-  ghg_scope3_max: 15000000     # 公噸CO2e（電子業全供應鏈揭露易超 5M，以大型跨國製造業為基準）
-  carbon_intensity_max: 500    # 公噸CO2e/百萬元營收
-  electricity_max: 5000000000  # kWh
-  renewable_ratio_max: 100     # %
-  water_max: 50000000          # 立方公尺
-  waste_max: 500000            # 公噸
-  injury_rate_max: 5.0         # TRIR 比率
-  turnover_max: 30.0           # %
-  female_ratio_max: 100        # %
-  female_mgmt_ratio_max: 100   # %
-  training_hours_max: 80       # 小時/人/年
-  independent_director_ratio_max: 100  # %
-  female_director_ratio_max: 100       # %
-  violations_max: 10           # 次
+  ghg_scope1_max: 20000000     # 公噸CO2e（台灣重工業最差情境；中鋼 2023 = 16.8M，原 10M 會強制 clamp 至 0%）
+  ghg_scope2_max: 1500000      # 公噸CO2e（中鋼 2023 = 1.25M，原 1M 會強制 clamp 至 0%）
+  ghg_scope3_max: 15000000     # 公噸CO2e（南山人壽含投資組合 financed emissions = 14.4M，設 15M）
+  carbon_intensity_max: 500    # 公噸CO2e/百萬元營收（SASB 鋼鐵業參考，中鋼 = 85，餘裕充足）
+  electricity_max: 5000000000  # kWh（台灣大型製造業最差情境；中鋼 = 2.56B kWh）
+  renewable_ratio_max: 100     # %（自然上限）
+  water_max: 50000000          # 立方公尺（中鋼 = 26.4M，餘裕充足）
+  waste_max: 750000            # 公噸（中鋼 2023 = 517K，原 500K 會 clamp 至 0%；設 750K 給重工業合理空間）
+  injury_rate_max: 5.0         # 台灣失能傷害頻率（每百萬工時；台灣製造業均值 1-3，5.0 為重工業最差情境）
+  turnover_max: 30.0           # %（台灣企業年離職率最差情境）
+  female_ratio_max: 100        # %（越高越好，100% 為數學上限；政策目標 50% 性別平等另行說明）
+  female_mgmt_ratio_max: 100   # %（越高越好；30% Club 國際目標供參）
+  training_hours_max: 40       # 小時/人/年（台灣製造業均值 35-45h，40h 為達標標準；原 80h 過嚴）
+  independent_director_ratio_max: 100  # %（越高越好；台灣法規要求 ≥ 33%，OECD 建議 50%+）
+  female_director_ratio_max: 100       # %（越高越好；30% Club 國際標準供參）
+  violations_max: 10           # 次（GRI 2-27；10 次以上視為高風險；新聞事件懲罰由 news_event_score 補充）
+
+# ── 產業別正規化覆寫（只列與 global 不同的指標）────────────────
+# 分類邏輯見 core/sector.py；未列出的指標沿用上方 normalization 全域預設值
+sector_normalization:
+  semiconductor:                   # 半導體晶圓代工（台積電、聯電等）
+    ghg_scope2_max: 12000000       # 公噸CO2e（台積電 10.96M；電力密集）
+    electricity_max: 30000000000   # kWh（台積電 25.5B；製程高耗電）
+    water_max: 200000000           # m³（台積電 161M；超純水製程需求）
+
+  heavy_industry:                  # 鋼鐵/水泥/石化/金屬/造紙
+    ghg_scope1_max: 25000000       # 公噸CO2e（中鋼 16.8M；高溫製程）
+    ghg_scope2_max: 2000000        # 公噸CO2e（中鋼 1.25M）
+    electricity_max: 10000000000   # kWh（煉鋼/煉油廠最差情境）
+    water_max: 100000000           # m³（冷卻水用量大）
+    waste_max: 1000000             # 公噸（工業廢料量大）
+
+  financial_services:              # 銀行/保險/證券/資產管理
+    ghg_scope1_max: 100000         # 公噸CO2e（辦公室燃氣，南山 2.2K）
+    ghg_scope2_max: 300000         # 公噸CO2e（大型銀行辦公室用電）
+    electricity_max: 500000000     # kWh（南山 38M；大型金融集團含機房）
+    water_max: 5000000             # m³（辦公大樓用水）
 
 # ── 分級門檻（固定門檻法，仿 TESG A+~C-）────────────────────
 grade_thresholds:
