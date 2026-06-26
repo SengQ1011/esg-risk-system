@@ -15,6 +15,8 @@ env/
 # ── 資料庫（生成物，從 preprocess_cache.py 重建）──────────────────
 *.db
 *.sqlite3
+*.db-shm
+*.db-wal
 
 # ── 大型 PDF 檔（從 download_reports.py 重新下載）─────────────────
 data/pdfs/
@@ -28,7 +30,8 @@ data/logs/
 CLAUDE.md
 .claude/skills/
 .claude/rules/
-# 保留：.claude/rules/（專案規範，需 commit）
+# ── Demo 腳本（本地使用，不需 commit）────────────────────────────
+DEMO_SCRIPT.md
 
 # ── Next.js 前端 ─────────────────────────────────────────────────
 node_modules/
