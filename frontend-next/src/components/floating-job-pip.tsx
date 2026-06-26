@@ -27,7 +27,8 @@ export function FloatingJobPip() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const companyRef  = useRef("")
 
-  // 讀 localStorage
+  // 讀 localStorage — 依賴 pathname 確保同一 tab 最小化跳回主頁時也能重新讀取
+  // （window.storage 只在跨 tab 寫入時觸發，同 tab 內必須靠 pathname 變化觸發）
   useEffect(() => {
     function readPip() {
       try {
@@ -43,7 +44,7 @@ export function FloatingJobPip() {
     readPip()
     window.addEventListener("storage", readPip)
     return () => window.removeEventListener("storage", readPip)
-  }, [])
+  }, [pathname])
 
   // 輪詢 job 狀態
   useEffect(() => {
