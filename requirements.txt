@@ -1,6 +1,5 @@
 fastapi
 uvicorn[standard]
-streamlit
 sqlalchemy
 google-genai
 python-dotenv
@@ -11,3 +10,5 @@ pydantic
 pyyaml
 pdfplumber
 pypdf
+pymupdf
+python-multipart
