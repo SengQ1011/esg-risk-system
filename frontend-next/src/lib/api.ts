@@ -21,6 +21,29 @@ export async function fetchCompanies(): Promise<CompaniesResponse> {
   return apiFetch<CompaniesResponse>("/api/companies")
 }
 
+export interface PdfCandidate {
+  url: string
+  label: string
+  local: boolean
+}
+
+export interface SearchPdfResult {
+  candidates: PdfCandidate[]
+  hint: string
+}
+
+export async function searchCompanyPdf(
+  company: string,
+  year: number,
+  ticker = "",
+): Promise<SearchPdfResult> {
+  const params = new URLSearchParams({ company, year: String(year), ticker })
+  const res = await apiFetch<{ status: string; data: SearchPdfResult }>(
+    `/api/search-pdf?${params}`,
+  )
+  return res.data
+}
+
 export async function fetchCompanyDetail(name: string): Promise<CompanyDetailResponse> {
   return apiFetch<CompanyDetailResponse>(`/api/company/${encodeURIComponent(name)}`)
 }

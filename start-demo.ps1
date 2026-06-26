@@ -14,7 +14,7 @@ Start-Sleep -Seconds 4
 # ── Step 2: Backend Cloudflare Tunnel ────────────────────────
 Write-Host "[2/5] Creating backend Cloudflare Tunnel..." -ForegroundColor Cyan
 $logBackend = "$env:TEMP\esg_backend.log"
-if (Test-Path $logBackend) { Remove-Item $logBackend }
+if (Test-Path $logBackend) { Remove-Item $logBackend -ErrorAction SilentlyContinue }
 Start-Process cloudflared -ArgumentList @("tunnel", "--url", "http://localhost:8000") -RedirectStandardError $logBackend -WindowStyle Hidden
 
 Write-Host "  Waiting for backend URL" -NoNewline
@@ -64,7 +64,7 @@ Start-Sleep -Seconds 6
 # ── Step 5: Frontend Cloudflare Tunnel ───────────────────────
 Write-Host "[5/5] Creating frontend Cloudflare Tunnel..." -ForegroundColor Cyan
 $logFrontend = "$env:TEMP\esg_frontend.log"
-if (Test-Path $logFrontend) { Remove-Item $logFrontend }
+if (Test-Path $logFrontend) { Remove-Item $logFrontend -ErrorAction SilentlyContinue }
 Start-Process cloudflared -ArgumentList @("tunnel", "--url", "http://localhost:3000") -RedirectStandardError $logFrontend -WindowStyle Hidden
 
 Write-Host "  Waiting for frontend URL" -NoNewline
